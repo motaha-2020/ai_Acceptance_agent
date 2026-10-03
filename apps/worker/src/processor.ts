@@ -57,6 +57,11 @@ export class AnalyzePhotoProcessor {
       logger.info({ photoId, status: photo.status }, 'analyze-photo: photo already processed, skipping');
       return;
     }
+    if (photo.categoryState !== 'confirmed') {
+      // Bulk upload whose category the uploader has not confirmed yet (ADR 0005): confirming re-enqueues it.
+      logger.info({ photoId, categoryState: photo.categoryState }, 'analyze-photo: category not confirmed, skipping');
+      return;
+    }
 
     const budget = await this.deps.budget.check();
     if (!budget.ok) {

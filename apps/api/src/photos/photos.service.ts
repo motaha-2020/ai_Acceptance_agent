@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { Logger } from 'pino';
 import { Prisma, UNIQUE_VIOLATION, type Photo, type PrismaClient } from '@acceptance/db';
-import { analyzePhotoJobId, JobName, type AnalyzePhotoJob, type JobQueue } from '@acceptance/queue';
-import { UploadPhotoMetadata, type ListPhotosQuery } from '@acceptance/shared';
+import { analyzePhotoJobId, classifyPhotoJobId, JobName, type AnalyzePhotoJob, type ClassifyPhotoJob, type JobQueue } from '@acceptance/queue';
+import { UploadPhotoMetadata, type ConfirmCategoriesRequest, type ListPhotosQuery } from '@acceptance/shared';
 import type { ObjectStorage } from '@acceptance/storage';
 import { whereFor } from '../auth/ability.js';
 import type { AuthContext } from '../auth/auth.types.js';
@@ -52,6 +52,9 @@ export class PhotosService {
       throw badRequest('VALIDATION_FAILED', 'Invalid photo metadata', parsed.error.issues.map((i) => ({ path: i.path.join('.'), message: i.message })));
     }
     const meta = parsed.data;
+    if (meta.autoCategory && (meta.captureSource === 'camera' || meta.fixesPhotoId)) {
+      throw badRequest('INVALID_AUTO_CATEGORY', 'autoCategory is for bulk/gallery uploads, not live captures or re-shots');
+    }
 
     const retry = await this.prisma.photo.findUnique({ where: { clientUuid: meta.clientUuid } });
     if (retry) return this.asRetry(auth, retry, meta.visitId);
@@ -75,7 +78,8 @@ export class PhotosService {
 
     const img = await processImage(file.data);
     const sameContent = await this.prisma.photo.findFirst({ where: { sha256: img.sha256 }, orderBy: { uploadedAt: 'asc' } });
-    if (sameContent && sameContent.visitId === visit.id && sameContent.category === meta.category) {
+    // A bulk upload's category is only a guess, so identical bytes in the same visit are the same photo.
+    if (sameContent && sameContent.visitId === visit.id && (meta.autoCategory || sameContent.category === meta.category)) {
       return { photo: await this.presenter.present(sameContent), created: false, duplicate: 'content' };
     }
 
@@ -123,6 +127,10 @@ export class PhotosService {
             deviceInfo: meta.deviceInfo ? (meta.deviceInfo as Prisma.InputJsonValue) : Prisma.JsonNull,
             duplicateOfId: sameContent?.id ?? null,
             fixesPhotoId: meta.fixesPhotoId ?? null,
+            captureSource: meta.captureSource,
+            uploadBatchId: meta.uploadBatchId ?? null,
+            fileName: meta.fileName ?? null,
+            categoryState: meta.autoCategory ? 'classifying' : 'confirmed',
             uploadedById: auth.user.id,
           },
         });
@@ -136,7 +144,8 @@ export class PhotosService {
       throw err;
     }
 
-    await this.enqueueAnalysis(photo.id, 'upload');
+    if (meta.autoCategory) await this.enqueueClassification(photo.id);
+    else await this.enqueueAnalysis(photo.id, 'upload');
     return { photo: await this.presenter.present(photo), created: true };
   }
 
@@ -144,7 +153,15 @@ export class PhotosService {
     const where: Prisma.PhotoWhereInput = {
       AND: [
         whereFor(auth.ability, 'read', 'Photo'),
-        { visitId: q.visitId, siteId: q.siteId, category: q.category, status: q.status, ...(q.projectId ? { site: { projectId: q.projectId } } : {}) },
+        {
+          visitId: q.visitId,
+          siteId: q.siteId,
+          category: q.category,
+          status: q.status,
+          uploadBatchId: q.uploadBatchId,
+          categoryState: q.categoryState,
+          ...(q.projectId ? { site: { projectId: q.projectId } } : {}),
+        },
       ],
     };
     const [rows, total] = await this.prisma.$transaction([
@@ -172,6 +189,7 @@ export class PhotosService {
   async reanalyze(id: string) {
     const photo = await this.prisma.photo.findUnique({ where: { id } });
     if (!photo) throw notFound('Photo', id);
+    if (photo.categoryState !== 'confirmed') throw conflict('CATEGORY_NOT_CONFIRMED', 'Confirm the photo category before analysing it');
     if (photo.status !== 'uploaded') {
       assertPhotoTransition(photo.status, 'uploaded');
       const changed = await this.prisma.photo.updateMany({ where: { id, status: photo.status }, data: { status: 'uploaded', aiSkipReason: null } });
@@ -184,12 +202,45 @@ export class PhotosService {
   /** Enqueue analysis for photos stuck in `uploaded` (e.g. queue outage during upload). */
   async requeueStuck(olderThanMinutes = 10): Promise<{ enqueued: number }> {
     const stuck = await this.prisma.photo.findMany({
-      where: { status: 'uploaded', uploadedAt: { lt: new Date(Date.now() - olderThanMinutes * 60_000) } },
+      where: { status: 'uploaded', categoryState: 'confirmed', uploadedAt: { lt: new Date(Date.now() - olderThanMinutes * 60_000) } },
       select: { id: true },
       take: 1000,
     });
     for (const p of stuck) await this.enqueueAnalysis(p.id, 'reanalyze');
     return { enqueued: stuck.length };
+  }
+
+  /**
+   * Bulk upload (ADR 0005): the uploader confirms or corrects the AI-proposed categories; each photo moves to
+   * the submission of its final category and is then analysed. Already-confirmed photos are skipped.
+   */
+  async confirmCategories(auth: AuthContext, input: ConfirmCategoriesRequest): Promise<{ confirmed: number; skipped: number }> {
+    const ids = [...new Set(input.items.map((i) => i.photoId))];
+    const photos = await this.prisma.photo.findMany({
+      where: { id: { in: ids }, visit: whereFor(auth.ability, 'upload', 'Visit') as Prisma.VisitWhereInput },
+    });
+    const byId = new Map(photos.map((p) => [p.id, p] as const));
+    const missing = ids.filter((id) => !byId.has(id));
+    if (missing.length) throw notFound('Photo', missing[0]!);
+    const confirmed: string[] = [];
+    for (const item of input.items) {
+      const photo = byId.get(item.photoId)!;
+      if (photo.categoryState === 'confirmed' || confirmed.includes(photo.id)) continue;
+      const changed = await this.prisma.$transaction(async (tx) => {
+        const submission = await tx.submission.upsert({
+          where: { visitId_category: { visitId: photo.visitId, category: item.category } },
+          update: {},
+          create: { visitId: photo.visitId, category: item.category },
+        });
+        return tx.photo.updateMany({
+          where: { id: photo.id, categoryState: { in: ['classifying', 'proposed'] } },
+          data: { category: item.category, submissionId: submission.id, categoryState: 'confirmed' },
+        });
+      });
+      if (changed.count === 1) confirmed.push(photo.id);
+    }
+    for (const id of confirmed) await this.enqueueAnalysis(id, 'upload');
+    return { confirmed: confirmed.length, skipped: input.items.length - confirmed.length };
   }
 
   private async asRetry(auth: AuthContext, photo: Photo, visitId: string): Promise<UploadResult> {
@@ -202,6 +253,15 @@ export class PhotosService {
   private async putIfMissing(key: string, data: Uint8Array, contentType: string): Promise<void> {
     if (await this.storage.exists(key)) return;
     await this.storage.put(key, data, { contentType });
+  }
+
+  private async enqueueClassification(photoId: string): Promise<void> {
+    try {
+      await this.queue.enqueue<ClassifyPhotoJob>(JobName.classifyPhoto, { photoId }, { jobId: classifyPhotoJobId(photoId), attempts: this.config.AI_MAX_ATTEMPTS });
+    } catch (err) {
+      // The photo stays in 'classifying'; the uploader can still pick the category by hand and confirm.
+      this.logger.error({ err, photoId }, 'failed to enqueue classify-photo job');
+    }
   }
 
   private async enqueueAnalysis(photoId: string, reason: AnalyzePhotoJob['reason']): Promise<void> {

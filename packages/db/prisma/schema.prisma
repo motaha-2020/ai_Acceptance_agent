@@ -58,6 +58,20 @@ enum PhotoStatus {
   fixed
 }
 
+/// ADR 0005: how a photo reached the system.
+enum CaptureSource {
+  camera
+  web_bulk
+  app_gallery
+}
+
+/// ADR 0005: whether Photo.category is final (bulk uploads: AI proposes, uploader confirms).
+enum CategoryState {
+  confirmed
+  classifying
+  proposed
+}
+
 enum SnagStatus {
   open
   fixed
@@ -412,6 +426,16 @@ model Photo {
   /// Why AI analysis was skipped (budget_exceeded, analysis_failed, ...); the photo still goes to a human.
   aiSkipReason  String?
 
+  captureSource       CaptureSource  @default(camera)
+  uploadBatchId       String?
+  /// Original file path/name for bulk uploads (category hint, provenance).
+  fileName            String?
+  categoryState       CategoryState  @default(confirmed)
+  /// AI category proposal for bulk uploads (category holds the uploader's guess until confirmed).
+  proposedCategory    PhotoCategory?
+  proposedAlternative PhotoCategory?
+  categoryConfidence  Float?
+
   uploadedById    String
   uploadedBy      User      @relation("PhotoUploader", fields: [uploadedById], references: [id])
   uploadedAt      DateTime  @default(now()) @db.Timestamptz(3)
@@ -430,6 +454,7 @@ model Photo {
   @@index([siteId])
   @@index([visitId])
   @@index([sha256])
+  @@index([uploadBatchId])
   @@map("photos")
 }
 

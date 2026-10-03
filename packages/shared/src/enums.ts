@@ -16,6 +16,18 @@ export const PhotoStatus = z.enum([
 ]);
 export type PhotoStatus = z.infer<typeof PhotoStatus>;
 
+/** How a photo reached the system (ADR 0005). Bulk/gallery photos are not proof of a live site visit. */
+export const CaptureSource = z.enum(['camera', 'web_bulk', 'app_gallery']);
+export type CaptureSource = z.infer<typeof CaptureSource>;
+
+/**
+ * Whether `Photo.category` is final. Bulk uploads start `classifying` (AI proposes a category), then
+ * `proposed`; analysis only starts once the uploader confirms (`confirmed`). Kept separate from
+ * PhotoStatus on purpose: installed app versions reject unknown photo statuses.
+ */
+export const CategoryState = z.enum(['confirmed', 'classifying', 'proposed']);
+export type CategoryState = z.infer<typeof CategoryState>;
+
 export const SnagStatus = z.enum(['open', 'fixed', 'verified']);
 export const SnagSource = z.enum(['ai', 'human']);
 export const Severity = z.enum(['minor', 'major', 'critical']);

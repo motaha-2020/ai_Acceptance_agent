@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { BBox } from './analysis.js';
 import {
+  CaptureSource,
+  CategoryState,
   PhotoCategory,
   PhotoStatus,
   ReviewDecision,
@@ -209,11 +211,30 @@ export const UploadPhotoMetadata = z.object({
   deviceInfo: z.record(z.union([z.string().max(200), z.number(), z.boolean()])).optional(),
   /** Set when this photo is a re-shot that fixes snags of another (rejected) photo. */
   fixesPhotoId: id.optional(),
+  /** Default camera (live capture in the field app). */
+  captureSource: CaptureSource.default('camera'),
+  /** Groups the photos of one bulk upload session (client-generated). */
+  uploadBatchId: z.string().uuid().optional(),
+  /**
+   * Bulk upload: `category` is only the uploader's first guess; the AI proposes one and nothing is
+   * analysed until the uploader confirms (POST /photos/confirm-categories).
+   */
+  autoCategory: z.boolean().default(false),
+  /** Original file path/name from the uploader's disk (hint for the category proposal). */
+  fileName: z.string().trim().max(300).optional(),
 });
 export type UploadPhotoMetadata = z.infer<typeof UploadPhotoMetadata>;
 
+/** Confirm (or correct) the categories of bulk-uploaded photos; each confirmed photo is then analysed. */
+export const ConfirmCategoriesRequest = z.object({
+  items: z.array(z.object({ photoId: id, category: PhotoCategory })).min(1).max(200),
+});
+export type ConfirmCategoriesRequest = z.infer<typeof ConfirmCategoriesRequest>;
+
 export const ListPhotosQuery = PageQuery.extend({
   visitId: id.optional(),
+  uploadBatchId: z.string().uuid().optional(),
+  categoryState: CategoryState.optional(),
   siteId: id.optional(),
   projectId: id.optional(),
   category: PhotoCategory.optional(),

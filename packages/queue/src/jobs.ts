@@ -1,6 +1,7 @@
 /** Job names and payloads shared by producers (API) and consumers (worker). */
 export const JobName = {
   analyzePhoto: 'analyze-photo',
+  classifyPhoto: 'classify-photo',
   generateReport: 'generate-report',
 } as const;
 
@@ -22,4 +23,13 @@ export interface GenerateReportJob {
 
 export function generateReportJobId(reportId: string): string {
   return `report-${reportId}`;
+}
+
+/** ADR 0005: propose a category for a bulk-uploaded photo (no analysis until the uploader confirms). */
+export interface ClassifyPhotoJob {
+  photoId: string;
+}
+
+export function classifyPhotoJobId(photoId: string): string {
+  return `classify-${photoId}`;
 }

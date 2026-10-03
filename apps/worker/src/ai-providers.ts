@@ -1,4 +1,5 @@
-import { createCascade, createProvider, DEFAULT_CASCADE, type ProviderName } from '@acceptance/ai';
+import { createCascade, createClassifier, createProvider, DEFAULT_CASCADE, type ProviderName } from '@acceptance/ai';
+import type { CategoryClassifierPort } from './classify.js';
 import type { ProviderRegistry } from './providers.js';
 
 /**
@@ -24,4 +25,15 @@ export function registerAiProviders(registry: ProviderRegistry, env: AiProviderE
     registry.register(name, () => createProvider(name, model ? { model } : {}));
   }
   registry.register('cascade', () => createCascade(DEFAULT_CASCADE));
+}
+
+/**
+ * Bulk-upload category classifier (ADR 0005) on the configured vendor and model; `cascade` classifies with
+ * Gemini Flash-Lite (category is easy, defects are not). Undefined for `fake` (the runtime then uses its fake).
+ */
+export function createAiClassifier(provider: string, env: AiProviderEnv = {}): CategoryClassifierPort | undefined {
+  const model = env.AI_MODEL?.trim() || undefined;
+  if (provider === 'cascade') return createClassifier('gemini', { model: 'gemini-3.1-flash-lite' });
+  if (provider === 'claude' || provider === 'gemini' || provider === 'openai') return createClassifier(provider, model ? { model } : {});
+  return undefined;
 }

@@ -2,14 +2,14 @@ import { Controller, Get, HttpCode, Inject, Post, Req, Res } from '@nestjs/commo
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type {} from '@fastify/multipart'; // request.parts() typings
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { ListPhotosQuery, UploadPhotoMetadata } from '@acceptance/shared';
+import { ConfirmCategoriesRequest, ListPhotosQuery, UploadPhotoMetadata } from '@acceptance/shared';
 import { Audited } from '../audit/audit.decorator.js';
 import type { AuthContext } from '../auth/auth.types.js';
 import { Auth, CheckPolicy } from '../auth/decorators.js';
 import type { AppConfig } from '../config/config.js';
 import { badRequest, DomainError } from '../core/errors.js';
 import { CONFIG } from '../core/tokens.js';
-import { ApiIdParam, ApiZodQuery, IdParam, toOpenApi, ZQuery } from '../core/zod.js';
+import { ApiIdParam, ApiZodBody, ApiZodQuery, IdParam, toOpenApi, ZBody, ZQuery } from '../core/zod.js';
 import { PhotosService, type UploadedFile } from './photos.service.js';
 
 @ApiTags('photos')
@@ -56,6 +56,16 @@ export class PhotosController {
   @ApiIdParam()
   get(@Auth() auth: AuthContext, @IdParam() id: string) {
     return this.photos.get(auth, id);
+  }
+
+  @Post('confirm-categories')
+  @HttpCode(200)
+  @CheckPolicy('upload', 'Visit')
+  @Audited('Photo')
+  @ApiOperation({ summary: 'Bulk upload: confirm or correct AI-proposed categories; confirmed photos are then analysed' })
+  @ApiZodBody(ConfirmCategoriesRequest)
+  confirmCategories(@Auth() auth: AuthContext, @ZBody(ConfirmCategoriesRequest) body: ConfirmCategoriesRequest) {
+    return this.photos.confirmCategories(auth, body);
   }
 
   @Post('requeue-stuck')

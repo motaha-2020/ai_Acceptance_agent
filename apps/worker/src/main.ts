@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { createPrismaClient } from '@acceptance/db';
 import { createJobQueue } from '@acceptance/queue';
 import { createObjectStorage } from '@acceptance/storage';
-import { registerAiProviders } from './ai-providers.js';
+import { createAiClassifier, registerAiProviders } from './ai-providers.js';
 import { startReportRuntime } from './reports/processor.js';
 import { buildProviderRegistry, startAnalysisRuntime, WorkerEnv } from './runtime.js';
 
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   const storage = createObjectStorage(env);
   const providers = buildProviderRegistry((r) => registerAiProviders(r, env));
   if (providers.has(env.AI_PROVIDER)) providers.get(env.AI_PROVIDER); // fail fast on a missing API key
-  startAnalysisRuntime({ prisma, storage, queue, logger, env, providers });
+  startAnalysisRuntime({ prisma, storage, queue, logger, env, providers, classifier: createAiClassifier(env.AI_PROVIDER, env) });
   startReportRuntime({ prisma, storage, queue, logger });
 
   // Liveness for the container healthcheck: touch a file only while the queue and DB answer.

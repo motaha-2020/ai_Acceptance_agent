@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { PrismaClient } from '@acceptance/db';
 import type { JobQueue } from '@acceptance/queue';
 import type { ObjectStorage } from '@acceptance/storage';
+import { ClassifyPhotoProcessor, FakeCategoryClassifier, startClassifyWorker, type CategoryClassifierPort } from './classify.js';
 import { DailyBudgetGuard, HumanReviewGate, PolicyAutonomyGate, type AutonomyGate, type BudgetGuard } from './guards.js';
 import { AnalyzePhotoProcessor, startAnalysisWorker, type Logger } from './processor.js';
 import { FakeAnalysisProvider, ProviderRegistry } from './providers.js';
@@ -43,6 +44,8 @@ export interface AnalysisRuntimeDeps {
   providers?: ProviderRegistry;
   budget?: BudgetGuard;
   gate?: AutonomyGate;
+  /** Bulk-upload category proposals (ADR 0005); default: a fake that keeps the uploader's guess. */
+  classifier?: CategoryClassifierPort;
 }
 
 /** Wire the processor and register the queue consumer. Returns the processor (for tests). */
@@ -51,16 +54,19 @@ export function startAnalysisRuntime(deps: AnalysisRuntimeDeps): AnalyzePhotoPro
   if (!providers.has(deps.env.AI_PROVIDER)) {
     throw new Error(`AI_PROVIDER="${deps.env.AI_PROVIDER}" is not registered (known: ${providers.names().join(', ')})`);
   }
+  const budget = deps.budget ?? new DailyBudgetGuard(deps.prisma, deps.env.AI_DAILY_BUDGET_USD);
   const processor = new AnalyzePhotoProcessor({
     prisma: deps.prisma,
     storage: deps.storage,
     providers,
     providerName: deps.env.AI_PROVIDER,
-    budget: deps.budget ?? new DailyBudgetGuard(deps.prisma, deps.env.AI_DAILY_BUDGET_USD),
+    budget,
     gate: deps.gate ?? (deps.env.AUTONOMY_ENABLED ? new PolicyAutonomyGate(deps.prisma) : new HumanReviewGate()),
     logger: deps.logger,
   });
   startAnalysisWorker(deps.queue, processor, { concurrency: deps.env.AI_CONCURRENCY, attempts: deps.env.AI_MAX_ATTEMPTS });
+  const classify = new ClassifyPhotoProcessor({ prisma: deps.prisma, storage: deps.storage, classifier: deps.classifier ?? new FakeCategoryClassifier(), budget, logger: deps.logger });
+  startClassifyWorker(deps.queue, classify, { concurrency: deps.env.AI_CONCURRENCY });
   deps.logger.info({ provider: deps.env.AI_PROVIDER, concurrency: deps.env.AI_CONCURRENCY, queue: deps.queue.kind }, 'analysis worker started');
   return processor;
 }
