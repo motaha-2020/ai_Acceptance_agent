@@ -15,11 +15,11 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P1 Data & Ingestion
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T1.1 | Parse sangs docx -> snags_seed.jsonl | Data Engineer | todo | 3 files, ~108 photos, Arabic remarks |
-| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | todo | |
-| T1.3 | Parse LLD/inventory/mapping/fiber-test -> site seed | Data Engineer | todo | |
-| T1.4 | Import 4 sites' photos as demo/eval data | Data Engineer | todo | |
-| T1.5 | OCR SID checklist images | AI Engineer | todo | |
+| T1.1 | Parse sangs docx -> snags_seed.jsonl | Data Engineer | review | tools/ingest: 108 images, 168 (image,remark) records, 99 groups; data/snags_seed.jsonl |
+| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | doing | packages/checklist |
+| T1.3 | Parse LLD/inventory/mapping/fiber-test -> site seed | Data Engineer | review | data/sites/nasr3-r21c.json (zod-validated) + 4 cross-source warnings |
+| T1.4 | Import 4 sites' photos as demo/eval data | Data Engineer | review | data/photo_catalog.jsonl: 791 photos, 0 unmapped, 95 sha256 dup groups |
+| T1.5 | OCR SID checklist images | AI Engineer | doing | |
 
 ## P2 Backend
 | ID | Task | Owner | Status | Notes |
@@ -60,6 +60,10 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 | T5.3 | Camera + offline queue + background upload | Mobile App Builder | todo | |
 | T5.4 | AI feedback / retake / fix flow | Mobile App Builder | todo | |
 | T5.5 | EAS builds | Mobile App Builder | todo | |
+| T5.6 | Download page on web: latest signed APK + QR code + version/changelog (Android only; iOS deferred - all technicians on Android) | Mobile App Builder | todo | model: Sonnet |
+| T5.7 | OTA updates: expo-updates + self-hosted update server on Hetzner (expo-updates protocol, code signing), channels production/staging, rollback | Mobile App Builder | todo | model: Opus |
+| T5.8 | Forced update gate: app checks API `min_supported_version`; OTA for JS changes, prompt to download new APK from web for native changes | Mobile App Builder | todo | model: Sonnet |
+| T5.9 | Release pipeline: CI publishes OTA bundle + APK to MinIO, admin page to publish/rollback a release to all devices | DevOps Automator | todo | model: Sonnet |
 
 ## P6 Reports
 | ID | Task | Owner | Status | Notes |
