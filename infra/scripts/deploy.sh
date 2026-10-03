@@ -108,6 +108,13 @@ server_main() {
   fi
   printf '%s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$version" >> "$ACC_RELEASES_LOG"
 
+  # Caddy bind-mounts infra/Caddyfile; the source swap leaves it on the previous file, so recreate on change.
+  if ! cmp -s "$ACC_ROOT/app.prev/infra/Caddyfile" "$ACC_APP/infra/Caddyfile"; then
+    log "Caddyfile changed: recreating caddy"
+    dc up -d --wait --force-recreate --no-deps caddy
+    wait_http "http://127.0.0.1/health" 30 || log "WARNING: /health not answering after caddy recreate"
+  fi
+
   install_backup_timer
   prune_images
   dc ps
