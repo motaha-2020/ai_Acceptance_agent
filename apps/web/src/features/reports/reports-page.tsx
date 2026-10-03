@@ -4,10 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query';
-import { FileText, Lock } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Alert } from '@/components/ui/alert';
 import { Badge, type BadgeTone } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PageHeader } from '@/components/data/states';
 import { DataTable, type Column } from '@/components/data/data-table';
@@ -15,6 +14,8 @@ import { listPhotos, listSites, listSnags } from '@/lib/api/endpoints';
 import type { SiteDto } from '@/lib/api/types';
 import type { AppLocale } from '@/i18n/config';
 import { formatNumber } from '@/lib/format';
+import { GenerateReport, LatestReport } from './report-actions';
+import { reportStrings } from './report-strings';
 
 export type Readiness = 'ready' | 'blocked' | 'inProgress';
 
@@ -31,6 +32,7 @@ const PAGE_SIZE = 10;
 export function ReportsPage() {
   const t = useTranslations('reports');
   const locale = useLocale() as AppLocale;
+  const s = reportStrings(locale);
   const [page, setPage] = useState(1);
   const sites = useQuery({ queryKey: ['sites', 'reports', page], queryFn: () => listSites({ page, pageSize: PAGE_SIZE }), placeholderData: keepPreviousData });
   const items = sites.data?.items ?? [];
@@ -68,15 +70,15 @@ export function ReportsPage() {
         );
       },
     },
+    { id: 'latest', header: s.colLatest, cell: (site) => <LatestReport siteId={site.id} s={s} /> },
     {
       id: 'generate',
       header: <span className="sr-only">{t('generate')}</span>,
-      cell: () => (
-        <Button size="sm" variant="outline" disabled title={t('generateDisabled')}>
-          <FileText aria-hidden />
-          {t('generate')}
-        </Button>
-      ),
+      cell: (site) => {
+        const d = rowData(items.indexOf(site));
+        const ready = d.approved !== null && d.pending !== null && d.openSnags !== null && readinessOf({ approved: d.approved, pending: d.pending, openSnags: d.openSnags }) === 'ready';
+        return <GenerateReport siteId={site.id} canFinal={ready} s={s} />;
+      },
     },
   ];
 
@@ -84,11 +86,8 @@ export function ReportsPage() {
     <>
       <PageHeader title={t('title')} description={t('description')} />
       <Alert tone="info" className="mb-4">
-        <Lock aria-hidden />
-        <div>
-          <p className="font-medium">{t('placeholderTitle')}</p>
-          <p>{t('placeholderBody')}</p>
-        </div>
+        <Info aria-hidden />
+        <p>{s.intro}</p>
       </Alert>
       <DataTable
         columns={columns}

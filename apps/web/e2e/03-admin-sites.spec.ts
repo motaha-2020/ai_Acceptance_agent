@@ -94,10 +94,10 @@ test.describe('sites, snag tracker and reports', () => {
     await expect.poll(async () => (await apiAs(USERS.admin, 'GET', `/snags/${snag.id}`)).status).toBe('verified');
   });
 
-  test('reports page lists readiness per site and keeps Generate disabled', async ({ page }) => {
+  test('reports page lists readiness per site and offers final/draft generation', async ({ page }) => {
     await uiLogin(page, USERS.pm, '/reports');
-    await expect(page.getByText('Report generation is coming')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Generate report' }).first()).toBeDisabled();
+    await expect(page.getByText(/Reports follow the SID layout/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Draft' }).first()).toBeEnabled();
     await expect(page.getByText(/blocked|in progress|ready/i).first()).toBeVisible();
   });
 
