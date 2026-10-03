@@ -25,6 +25,11 @@ export type LoginResult =
 export type RefreshResult = 'ok' | 'auth' | 'network';
 
 const KEY = 'auth.session.v1';
+/** Who signed in on this phone (id -> name/email, no secrets); kept after logout to name queue owners. */
+const KNOWN_USERS_KEY = 'auth.known-users.v1';
+const MAX_KNOWN_USERS = 10;
+
+export type KnownUser = Pick<AuthUserDto, 'id' | 'name' | 'email'>;
 /** Refresh a little before expiry so an upload never starts with a token about to die. */
 const SKEW_MS = 60_000;
 
@@ -110,7 +115,26 @@ export class AuthSession {
       refreshExpiresAt: body.refreshTokenExpiresAt,
       user: body.user,
     });
+    await this.rememberUser(body.user);
     return { ok: true, user: body.user };
+  }
+
+  /** Accounts that signed in on this phone, most recent first (survives logout and session expiry). */
+  async knownUsers(): Promise<KnownUser[]> {
+    const raw = await this.storage.get(KNOWN_USERS_KEY).catch(() => null);
+    if (!raw) return [];
+    try {
+      const list = JSON.parse(raw) as unknown;
+      return Array.isArray(list) ? (list as KnownUser[]).filter((u) => typeof u?.id === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private async rememberUser(user: AuthUserDto): Promise<void> {
+    const entry: KnownUser = { id: user.id, name: user.name, email: user.email };
+    const list = [entry, ...(await this.knownUsers()).filter((u) => u.id !== user.id)].slice(0, MAX_KNOWN_USERS);
+    await this.storage.set(KNOWN_USERS_KEY, JSON.stringify(list)).catch(() => undefined);
   }
 
   /** A valid access token (refreshing if needed), or null when logged out / refresh impossible. */

@@ -342,6 +342,18 @@ export class QueueStore {
     return c;
   }
 
+  /**
+   * Photos still on the phone (not done), per owner. Only the owner's session can upload them, so the
+   * login screen uses this to warn when another account left photos behind (e.g. its session expired).
+   */
+  async pendingByUser(): Promise<Array<{ userId: string; count: number }>> {
+    const rows = await this.db.getAllAsync<{ user_id: string; n: number }>(
+      `SELECT user_id, COUNT(*) AS n FROM upload_queue WHERE status != 'done' GROUP BY user_id ORDER BY MIN(seq)`,
+      [],
+    );
+    return rows.map((r) => ({ userId: r.user_id, count: Number(r.n) }));
+  }
+
   /** Forget finished rows older than `maxAgeMs` (their files are already deleted). */
   async pruneDone(maxAgeMs: number): Promise<number> {
     const res = await this.db.runAsync(

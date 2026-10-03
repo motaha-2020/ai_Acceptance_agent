@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { otherPendingOwners } from '../src/features/auth/pending-owners';
 import { AuthSession, type SecretStorage } from '../src/features/auth/session';
 
 class MemStorage implements SecretStorage {
@@ -80,5 +81,31 @@ describe('auth session', () => {
     expect(await s.refresh()).toBe('auth');
     expect(s.user).toBeNull();
     expect(seen).toEqual(['u1', null]);
+  });
+
+  it('remembers who signed in after the session is gone, so their queued photos can be attributed', async () => {
+    const storage = new MemStorage();
+    const srv = fakeServer();
+    const s = new AuthSession('http://api', storage, srv.fetchFn);
+    await s.login('a@b.c', 'pw');
+    srv.setRefreshStatus(401);
+    expect(await s.refresh()).toBe('auth'); // session expired and cleared
+    expect(s.user).toBeNull();
+    const known = await new AuthSession('http://api', storage, srv.fetchFn).knownUsers();
+    expect(known).toEqual([{ id: 'u1', name: 'Tech', email: 'a@b.c' }]);
+    expect(JSON.stringify(known)).not.toContain('refresh'); // no tokens kept
+  });
+});
+
+describe('photos left behind by another account', () => {
+  const known = [{ id: 'u1', name: 'Tech', email: 'a@b.c' }];
+  it('lists every owner on the login screen and names known accounts', () => {
+    expect(otherPendingOwners([{ userId: 'u1', count: 3 }, { userId: 'u9', count: 1 }], known, null)).toEqual([
+      { userId: 'u1', count: 3, user: known[0] },
+      { userId: 'u9', count: 1, user: null },
+    ]);
+  });
+  it('ignores the signed-in account and empty owners', () => {
+    expect(otherPendingOwners([{ userId: 'u1', count: 3 }, { userId: 'u2', count: 0 }], known, 'u1')).toEqual([]);
   });
 });

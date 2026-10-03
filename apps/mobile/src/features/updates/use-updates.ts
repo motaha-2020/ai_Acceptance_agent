@@ -5,7 +5,7 @@ import * as Updates from 'expo-updates';
 import { appConfig } from '../../config';
 import { AppReleaseDto } from '../../lib/api/schemas';
 import { isCaptureBusy, onCaptureBusyChange } from '../capture/busy';
-import { decideOtaAction, evaluateGate, pickReleaseInfo, shouldCheckOnResume, type GateDecision, type ReleaseInfo } from './policy';
+import { decideOtaAction, evaluateGate, pickReleaseInfo, settleReload, shouldCheckOnResume, type GateDecision, type ReleaseInfo } from './policy';
 
 const RELEASE_CACHE_KEY = 'release.latest.v1';
 
@@ -99,8 +99,10 @@ export function useOtaUpdates(): { status: OtaStatus; checkNow: () => Promise<vo
         setStatus('downloading');
         await Updates.fetchUpdateAsync();
         setStatus('ready');
-        if (action === 'reload_now') await Updates.reloadAsync();
-        if (action === 'reload_when_idle') reloadWhenIdle.current = true;
+        // The download can take a while: the camera may have opened since the decision was made.
+        const apply = settleReload(action, isCaptureBusy());
+        if (apply === 'reload_now') await Updates.reloadAsync();
+        if (apply === 'reload_when_idle') reloadWhenIdle.current = true;
       } catch {
         setStatus('error');
       }

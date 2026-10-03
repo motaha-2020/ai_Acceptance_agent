@@ -61,6 +61,11 @@ export function decideOtaAction(check: OtaCheck, busy: boolean): OtaAction {
   return busy ? 'reload_when_idle' : 'reload_now';
 }
 
+/** Re-evaluate a reload decision after the download finished: never reload under an open camera. */
+export function settleReload(action: OtaAction, busyNow: boolean): OtaAction {
+  return action === 'reload_now' && busyNow ? 'reload_when_idle' : action;
+}
+
 /** Throttle OTA checks on resume (launch always checks natively via checkAutomatically=ON_LOAD). */
 export function shouldCheckOnResume(lastCheckAt: number | null, now: number, minIntervalMs = 15 * 60_000): boolean {
   return lastCheckAt === null || now - lastCheckAt >= minIntervalMs;

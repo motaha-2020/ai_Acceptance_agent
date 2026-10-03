@@ -20,6 +20,9 @@ export const ar = {
     roleNotAllowed: 'هذا التطبيق مخصص للفنيين والمهندسين فقط',
     rateLimited: 'محاولات كثيرة، حاول بعد دقيقة',
     network: 'تعذر الاتصال بالخادم',
+    pendingOther: 'على الجهاز {{count}} صورة لم تُرفع بعد من حساب {{who}}. سجّل الدخول بنفس الحساب لرفعها؛ لن تُرفع من أي حساب آخر.',
+    unknownAccount: 'سابق',
+    useAccount: 'استخدم هذا الحساب',
   },
   visits: {
     title: 'زياراتي',
@@ -141,6 +144,9 @@ export const en: Messages = {
     roleNotAllowed: 'This app is for technicians and engineers only',
     rateLimited: 'Too many attempts, try again in a minute',
     network: 'Cannot reach the server',
+    pendingOther: '{{count}} photos from {{who}} are still on this phone. Sign in with that account to upload them; no other account can.',
+    unknownAccount: 'a previous account',
+    useAccount: 'Use this account',
   },
   visits: {
     title: 'My visits',

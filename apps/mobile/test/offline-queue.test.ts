@@ -376,4 +376,21 @@ describe('sync engine', () => {
     expect(await store.counts()).toEqual({ queued: 0, uploading: 0, linking: 0, failed: 0, done: 0 });
     db.close();
   });
+
+  it('reports photos still on the phone per account (done rows excluded)', async () => {
+    const w = new World();
+    const { store, db } = await openStore(w);
+    await store.enqueue(item({ userId: 'user-a' }));
+    const failed = await store.enqueue(item({ userId: 'user-a' }));
+    await store.markFailed(failed.clientUuid, 'HTTP 400');
+    const doneItem = await store.enqueue(item({ userId: 'user-b' }));
+    await store.markUploading(doneItem.clientUuid);
+    await store.markAcked(doneItem.clientUuid, 'photo-1');
+    await store.enqueue(item({ userId: 'user-c' }));
+    expect(await store.pendingByUser()).toEqual([
+      { userId: 'user-a', count: 2 },
+      { userId: 'user-c', count: 1 },
+    ]);
+    db.close();
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { decideOtaAction, evaluateGate, isCriticalUpdate, pickReleaseInfo, shouldCheckOnResume, type ReleaseInfo } from '../src/features/updates/policy';
+import { decideOtaAction, evaluateGate, isCriticalUpdate, pickReleaseInfo, settleReload, shouldCheckOnResume, type ReleaseInfo } from '../src/features/updates/policy';
 
 const release = (over: Partial<ReleaseInfo> = {}): ReleaseInfo => ({
   version: '1.2.0',
@@ -39,6 +39,12 @@ describe('OTA policy', () => {
     expect(decideOtaAction({ isAvailable: true, extra: { critical: true } }, false)).toBe('reload_now');
     expect(decideOtaAction({ isAvailable: true, extra: { critical: true } }, true)).toBe('reload_when_idle');
     expect(decideOtaAction({ isAvailable: false, isRollBackToEmbedded: true }, false)).toBe('reload_now');
+  });
+  it('defers a critical reload when the camera opened during the download', () => {
+    expect(settleReload('reload_now', true)).toBe('reload_when_idle');
+    expect(settleReload('reload_now', false)).toBe('reload_now');
+    expect(settleReload('reload_when_idle', false)).toBe('reload_when_idle');
+    expect(settleReload('apply_on_next_start', true)).toBe('apply_on_next_start');
   });
   it('detects the critical flag defensively', () => {
     expect(isCriticalUpdate(undefined)).toBe(false);
