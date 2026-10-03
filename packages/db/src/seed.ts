@@ -56,7 +56,21 @@ const Nasr3Seed = z.object({
       managementSource: z.string().nullish(),
     })
     .passthrough(),
-  device: z.object({ hostname: z.string().nullish(), platform: z.string().nullish(), chassisSerial: z.string().nullish() }).passthrough().nullish(),
+  device: z
+    .object({
+      hostname: z.string().nullish(),
+      platform: z.string().nullish(),
+      chassisSerial: z.string().nullish(),
+      modules: z.array(z.record(z.unknown())).default([]),
+      transceivers: z.array(z.record(z.unknown())).default([]),
+    })
+    .passthrough()
+    .nullish(),
+  // Report technical data (T1.3 output, already validated by SiteSeed at ingest time).
+  lld: z.record(z.unknown()).nullish(),
+  portMap: z.array(z.unknown()).default([]),
+  utilization: z.array(z.unknown()).default([]),
+  fiberTests: z.array(z.unknown()).default([]),
   inventorySummary: z.record(z.number()).nullish(),
   sidBom: z.array(z.object({ partNumber: z.string(), qty: z.number(), serials: z.array(z.string()).default([]) })).default([]),
   passivePower: z.array(z.object({ description: z.string(), unit: z.string().nullish(), qty: z.number().nullish() })).default([]),
@@ -260,6 +274,8 @@ export async function seedDatabase(prisma: PrismaClient, opts: SeedOptions): Pro
         prisma.bOMLine.createMany({ data: lines.map((l) => ({ ...l, siteId: site.id, source: 'sid' })) }),
       ]);
       log(`NASR3 BOM lines: ${lines.length}`);
+      await seedTechnicalData(prisma, site.id, nasr3Seed);
+      log('NASR3 technical data (site data, inventory, LLD, ODF, fiber tests) seeded');
     }
   }
   log(`sites: ${siteIds.length}`);
@@ -301,4 +317,20 @@ export async function seedDatabase(prisma: PrismaClient, opts: SeedOptions): Pro
     checklistTemplates: CHECKLISTS.length,
     nasr3FromFile,
   };
+}
+
+/** Report technical data for NASR3 (site_technical_data); overwrites the row so re-seeding stays in sync with the JSON. */
+async function seedTechnicalData(prisma: PrismaClient, siteId: string, seed: Nasr3Seed): Promise<void> {
+  const entries = [...(seed.device?.modules ?? []), ...(seed.device?.transceivers ?? [])];
+  const data = {
+    siteData: seed.siteData as object,
+    inventory: entries.length ? ({ hostname: seed.device?.hostname ?? '', capturedAt: null, entries } as object) : undefined,
+    lld: (seed.lld ?? undefined) as object | undefined,
+    portMap: seed.portMap as object,
+    utilization: seed.utilization as object,
+    fiberTests: seed.fiberTests as object,
+    sources: [{ kind: 'sid', name: 'data/sites/nasr3-r21c.json (seed)', sha256: '', sizeBytes: 0, storageKey: null, importedAt: new Date(0).toISOString(), importedById: null }],
+    warnings: seed.warnings,
+  };
+  await prisma.siteTechnicalData.upsert({ where: { siteId }, update: data, create: { ...data, siteId } });
 }

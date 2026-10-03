@@ -112,9 +112,9 @@ enum AnalysisStatus {
 }
 
 enum ReportStatus {
-  draft
-  generating
-  generated
+  queued
+  running
+  ready
   failed
 }
 
@@ -263,8 +263,9 @@ model Site {
   devices  Device[]
   visits   Visit[]
   photos   Photo[]
-  reports  Report[]
-  bomLines BOMLine[]
+  reports   Report[]
+  bomLines  BOMLine[]
+  technical SiteTechnicalData?
 
   @@index([projectId])
   @@map("sites")
@@ -550,21 +551,55 @@ model AutonomyPolicy {
 
 // ───────────────────────────── reports & materials (stubs) ─────────────────────────────
 
+/// Generated acceptance report (SID layout). Version increments per site; files live in object storage.
 model Report {
   id          String       @id @default(cuid())
   siteId      String
   site        Site         @relation(fields: [siteId], references: [id])
   version     Int
-  status      ReportStatus @default(draft)
+  status      ReportStatus @default(queued)
+  /// Draft reports may be built while snags are open or photos are unreviewed (marked DRAFT).
+  draft       Boolean      @default(false)
   docxKey     String?
   pdfKey      String?
+  docxBytes   Int?
+  pdfBytes    Int?
   error       String?
+  /// Data-quality warnings found while building (cross-source checks, missing sections, no PDF).
+  warnings    String[]     @default([])
+  /// Build statistics: photo/snag counts, checklist summary, AI models and prompt versions.
+  meta        Json?
   createdById String
   createdBy   User         @relation(fields: [createdById], references: [id])
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  startedAt   DateTime?    @db.Timestamptz(3)
+  finishedAt  DateTime?    @db.Timestamptz(3)
 
   @@unique([siteId, version])
   @@map("reports")
+}
+
+/// Per-site technical documents for the report (ADR 0004): typed JSON validated by
+/// @acceptance/parsers SiteTechnical on every write and read. One row per site.
+model SiteTechnicalData {
+  siteId      String   @id
+  site        Site     @relation(fields: [siteId], references: [id])
+  siteData    Json?
+  inventory   Json?
+  lld         Json?
+  portMap     Json?
+  utilization Json?
+  fiberTests  Json?
+  /// Manual answers for non-photo checklist items, keyed by SID item id.
+  survey      Json?
+  /// Provenance of imported source files.
+  sources     Json?
+  /// Cross-source consistency warnings from the last import.
+  warnings    String[] @default([])
+  updatedById String?
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("site_technical_data")
 }
 
 model MaterialItem {

@@ -42,6 +42,16 @@ describe('seedDatabase', () => {
     const policies = await prisma.autonomyPolicy.findMany();
     expect(policies).toHaveLength(20);
     expect(policies.every((p) => !p.enabled)).toBe(true);
+
+    // Report technical data is seeded from the T1.3 JSON when it exists (git-ignored, absent in CI).
+    const tech = await prisma.siteTechnicalData.findUnique({ where: { siteId: nasr3.id } });
+    if (summary.nasr3FromFile) {
+      expect((tech?.portMap as unknown[]).length).toBe(80);
+      expect((tech?.inventory as { entries: unknown[] }).entries.length).toBeGreaterThan(80);
+      expect(tech?.warnings.length).toBeGreaterThan(0);
+    } else {
+      expect(tech).toBeNull();
+    }
   });
 
   it('is idempotent and never resets a changed admin password', async () => {
