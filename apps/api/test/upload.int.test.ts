@@ -104,4 +104,26 @@ describe('photo upload validation and access', () => {
     expect(res.status).toBe(409);
     expect(res.json<{ error: { code: string } }>().error.code).toBe('VISIT_NOT_OPEN');
   });
+
+  it('accepts a re-shot of a rejected photo on a submitted visit, but no new photos', async () => {
+    const v = await siteWithVisit(h, admin, tech.id);
+    const up = await h.upload(tech.token, { clientUuid: randomUUID(), visitId: v.visitId, category: 'rack' }, await jpeg(41));
+    const photoId = up.json<UploadBody>().photo.id;
+    await h.queue.drain();
+    await h.request({ method: 'POST', url: `/api/v1/photos/${photoId}/reject`, token: admin, body: { reason: 'Rack door open' } });
+    await h.request({ method: 'PATCH', url: `/api/v1/visits/${v.visitId}`, token: admin, body: { status: 'submitted' } });
+    expect((await h.prisma.visit.findUniqueOrThrow({ where: { id: v.visitId } })).status).toBe('submitted');
+
+    const plain = await h.upload(tech.token, { clientUuid: randomUUID(), visitId: v.visitId, category: 'rack' }, await jpeg(42));
+    expect(plain.status).toBe(409);
+    expect(plain.json<{ error: { code: string } }>().error.code).toBe('VISIT_NOT_OPEN');
+
+    const fix = await h.upload(tech.token, { clientUuid: randomUUID(), visitId: v.visitId, category: 'rack', fixesPhotoId: photoId }, await jpeg(43));
+    expect(fix.status).toBe(201);
+    expect((await h.prisma.visit.findUniqueOrThrow({ where: { id: v.visitId } })).status).toBe('submitted');
+
+    await h.request({ method: 'PATCH', url: `/api/v1/visits/${v.visitId}`, token: admin, body: { status: 'closed' } });
+    const late = await h.upload(tech.token, { clientUuid: randomUUID(), visitId: v.visitId, category: 'rack', fixesPhotoId: photoId }, await jpeg(44));
+    expect(late.status).toBe(409);
+  });
 });

@@ -58,7 +58,10 @@ export class PhotosService {
 
     const visit = await this.prisma.visit.findFirst({ where: { AND: [whereFor(auth.ability, 'upload', 'Visit'), { id: meta.visitId }] } });
     if (!visit) throw notFound('Visit', meta.visitId);
-    if (!(OPEN_VISIT as readonly string[]).includes(visit.status)) throw conflict('VISIT_NOT_OPEN', `Visit is ${visit.status}; uploads are closed`);
+    // Snag fixes usually happen after the visit was submitted and reviewed, so a re-shot of a rejected
+    // photo is still accepted on a submitted visit (validated below); closed/cancelled visits stay shut.
+    const open = (OPEN_VISIT as readonly string[]).includes(visit.status) || (meta.fixesPhotoId !== undefined && visit.status === 'submitted');
+    if (!open) throw conflict('VISIT_NOT_OPEN', `Visit is ${visit.status}; uploads are closed`);
 
     if (meta.fixesPhotoId) {
       const original = await this.prisma.photo.findUnique({ where: { id: meta.fixesPhotoId } });
