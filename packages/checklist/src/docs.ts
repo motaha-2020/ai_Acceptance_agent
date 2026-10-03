@@ -17,7 +17,7 @@ export function renderTaxonomyMarkdown(): string {
   out.push('');
   out.push('These codes are what the AI emits and what reviewers pick when labelling. Please check for each row: is the meaning right, is the Arabic how you would say it, is the severity right, and does it apply to the right photo categories.');
   out.push('');
-  out.push('Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance (rejects the photo); **minor** = cosmetic, reported as a note to fix but does not reject the photo on its own (decision D9 in `packages/checklist/src/decisions.ts`).');
+  out.push('Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance (rejects the photo); **minor** = cosmetic, reported as a note to fix; does not reject the photo on its own, the photo goes to a human (decision D9 in `packages/checklist/src/decisions.ts`).');
   out.push('Origin: `snag_docs` = seen in the reviewers\' snag Word files; `sid_checklist` = from the SID acceptance checklist; `photo_quality` = retake reasons; `catch_all` = for issues not yet in the list.');
   out.push('');
   out.push(`Total: ${SNAG_TAXONOMY.length} codes.`);
@@ -28,7 +28,7 @@ export function renderTaxonomyMarkdown(): string {
   out.push('');
   renderSiteDecisions().forEach((r, i) => out.push(`- **D${i + 1}** ${r}`));
   out.push('- **D8** Photo-gate codes WRONG_CATEGORY and SUBJECT_NOT_FULLY_VISIBLE route the photo to a human (verdict uncertain) instead of rejecting it, unless a clear major snag is also present.');
-  out.push('- **D9** Only major/critical snags reject; photos with only minor snags are accepted with notes.');
+  out.push('- **D9** Only major/critical snags reject; photos with only minor snags go to a human (uncertain) with the notes listed (accept-with-notes is a one-line switch, pending reviewer confirmation).');
   out.push('');
   out.push('| # | Code | العربي | English | Severity | Origin | Categories |');
   out.push('|---|---|---|---|---|---|---|');

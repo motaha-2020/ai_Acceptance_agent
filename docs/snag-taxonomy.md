@@ -4,7 +4,7 @@ Version: `2026-10-03.2` — generated from `packages/checklist/src/taxonomy.ts`;
 
 These codes are what the AI emits and what reviewers pick when labelling. Please check for each row: is the meaning right, is the Arabic how you would say it, is the severity right, and does it apply to the right photo categories.
 
-Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance (rejects the photo); **minor** = cosmetic, reported as a note to fix but does not reject the photo on its own (decision D9 in `packages/checklist/src/decisions.ts`).
+Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance (rejects the photo); **minor** = cosmetic, reported as a note to fix; does not reject the photo on its own, the photo goes to a human (decision D9 in `packages/checklist/src/decisions.ts`).
 Origin: `snag_docs` = seen in the reviewers' snag Word files; `sid_checklist` = from the SID acceptance checklist; `photo_quality` = retake reasons; `catch_all` = for issues not yet in the list.
 
 Total: 46 codes.
@@ -21,7 +21,7 @@ Evidence-based defaults from prompt tuning (T3.5, docs/ai-tuning-log.md). Each i
 - **D6** Related categories: a close-up of the labels, cords or an item belonging to a related category of the declared one (listed in the category block) is the SAME subject, not WRONG_CATEGORY.
 - **D7** Housekeeping: pre-existing building dirt (old exchange floor, the void under the raised floor, walls, ceiling) is NOT a snag. DUST_OR_DIRT = dust on the installed equipment, rack interior or ODF, or a few cable-tie off-cuts. PACKAGING_OR_DEBRIS_LEFT = clear installer leftovers only (cartons, bags, wrapping, spare material, tools) in or at the installation.
 - **D8** Photo-gate codes WRONG_CATEGORY and SUBJECT_NOT_FULLY_VISIBLE route the photo to a human (verdict uncertain) instead of rejecting it, unless a clear major snag is also present.
-- **D9** Only major/critical snags reject; photos with only minor snags are accepted with notes.
+- **D9** Only major/critical snags reject; photos with only minor snags go to a human (uncertain) with the notes listed (accept-with-notes is a one-line switch, pending reviewer confirmation).
 
 | # | Code | العربي | English | Severity | Origin | Categories |
 |---|---|---|---|---|---|---|

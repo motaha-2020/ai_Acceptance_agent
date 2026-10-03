@@ -84,7 +84,7 @@ function poolImageStore(pool: readonly EvalItem[]): FewShotImageStore {
   };
 }
 
-export function parsePolicy(values: { policy?: string; 'reject-confidence'?: string; 'report-confidence'?: string; 'route-confidence'?: string; 'accept-confidence'?: string; 'minor-only'?: string }): VerdictPolicy {
+export function parsePolicy(values: { policy?: string; 'reject-confidence'?: string; 'report-confidence'?: string; 'route-confidence'?: string; 'accept-confidence'?: string; 'hold-confidence'?: string; 'minor-only'?: string }): VerdictPolicy {
   const base = values.policy === 'legacy' ? LEGACY_VERDICT_POLICY : DEFAULT_VERDICT_POLICY;
   const p: VerdictPolicy = { ...base };
   const tags: string[] = [];
@@ -92,6 +92,7 @@ export function parsePolicy(values: { policy?: string; 'reject-confidence'?: str
   if (values['report-confidence']) (p.reportConfidence = Number(values['report-confidence'])), tags.push(`pc${values['report-confidence']}`);
   if (values['route-confidence']) (p.routeConfidence = Number(values['route-confidence'])), tags.push(`rt${values['route-confidence']}`);
   if (values['accept-confidence']) (p.acceptConfidence = Number(values['accept-confidence'])), tags.push(`ac${values['accept-confidence']}`);
+  if (values['hold-confidence']) (p.holdConfidence = Number(values['hold-confidence'])), tags.push(`hc${values['hold-confidence']}`);
   if (values['minor-only']) {
     const m = values['minor-only'];
     if (m !== 'accept' && m !== 'uncertain' && m !== 'reject') throw new Error('--minor-only must be accept|uncertain|reject');
@@ -130,6 +131,7 @@ export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise
       'report-confidence': { type: 'string' },
       'route-confidence': { type: 'string' },
       'accept-confidence': { type: 'string' },
+      'hold-confidence': { type: 'string' },
       'minor-only': { type: 'string' },
       'image-max-side': { type: 'string' },
       label: { type: 'string' },
@@ -321,6 +323,7 @@ export function replayCommand(argv: string[], io: CliIO = defaultIO): { markdown
       'report-confidence': { type: 'string' },
       'route-confidence': { type: 'string' },
       'accept-confidence': { type: 'string' },
+      'hold-confidence': { type: 'string' },
       'minor-only': { type: 'string' },
       items: { type: 'string' },
       out: { type: 'string' },

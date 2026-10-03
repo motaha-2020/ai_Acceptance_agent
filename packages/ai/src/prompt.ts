@@ -12,7 +12,7 @@ import { prepareImage, type ImagePrepOptions, type PreparedImage } from './image
 import type { QualityReport } from './quality.js';
 
 /** Template version of the text this module adds on top of the checklist prompt. Bump on any change. */
-export const ADAPTER_PROMPT_VERSION = 'ai.2';
+export const ADAPTER_PROMPT_VERSION = 'ai.3';
 
 /**
  * T3.2 photo gate, evaluated by the model before the checklist. Local pixel checks (blur/dark) run
@@ -22,6 +22,7 @@ export const PHOTO_GATE_INSTRUCTIONS = [
   '# Step 1 - photo gate (do this before the checklist)',
   '- PERSON_IN_FRAME: apply site decision D2 (a hand holding a label or cord for a close-up is fine; any other body part, a face or a person in the background is a snag). Add "person_in_frame" to qualityIssues when you emit it.',
   '- Category: decide the main subject. It is the SAME subject when it is the declared category or one of its related categories (listed in the category block), including close-ups of its labels, cords, ports or parts. Only when the subject is clearly something else: set categoryMatches=false, detectedCategory=<that id>, emit WRONG_CATEGORY, then still do Step 2 and report clear snags you can see.',
+  '- Close-ups (a label held up, one port group, one cable) are judged on everything visible in the frame, not only on the item in focus: also check the adapters, ports, cords, caps and surfaces around it (e.g. unused adapters without dust caps, spare cords, dust, a torn label).',
   '- SUBJECT_NOT_FULLY_VISIBLE: only when the part needed to judge the checklist is cut off or hidden. A close-up showing part of the item is the normal way these photos are taken and is not a snag.',
   '- PHOTO_BLURRY / PHOTO_TOO_DARK: emit only when the defect prevents judging the checklist (label text unreadable, cable routing not distinguishable). Mild softness or dim but readable light is acceptable; racks are black and often dark.',
   '- Local measurements may be supplied with the photo. They are hints from a pixel statistic, not proof: confirm them visually.',

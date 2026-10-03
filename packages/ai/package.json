@@ -17,7 +17,8 @@
     "test": "vitest run",
     "eval": "tsx eval/cli.ts run",
     "eval:compare": "tsx eval/cli.ts compare",
-    "quality:stats": "tsx scripts/quality-stats.ts"
+    "quality:stats": "tsx scripts/quality-stats.ts",
+    "fewshot:build": "tsx eval/fewshot-curation.ts"
   },
   "dependencies": {
     "@acceptance/checklist": "workspace:*",

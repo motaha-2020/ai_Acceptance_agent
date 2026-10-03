@@ -53,6 +53,12 @@ export interface VerdictPolicy {
   routeConfidence: number;
   /** A clean accept needs the model verdict confidence >= this; otherwise the photo is uncertain. */
   acceptConfidence: number;
+  /**
+   * Any snag the model reports at or above this confidence (any code, even if dropped from the result by
+   * the thresholds above) blocks an accept: the photo becomes uncertain (a human looks). Protects against
+   * silent false accepts where the model only half-sees a real defect. 1 disables it.
+   */
+  holdConfidence: number;
   /** Major/critical snags at or above this confidence reject; below it they make the photo uncertain. */
   rejectConfidence: number;
   minorOnlyVerdict: 'accept' | 'uncertain' | 'reject';
@@ -64,10 +70,11 @@ export interface VerdictPolicy {
 }
 
 export const DEFAULT_VERDICT_POLICY: VerdictPolicy = {
-  version: 'vp2',
+  version: 'vp3',
   reportConfidence: 0.5,
   routeConfidence: 0.35,
-  acceptConfidence: 0,
+  acceptConfidence: 0.65,
+  holdConfidence: 0.3,
   rejectConfidence: 0.7,
   minorOnlyVerdict: SITE_DECISIONS.minorOnlyVerdict,
   routeToHumanCodes: SITE_DECISIONS.routeToHumanCodes,
@@ -81,6 +88,7 @@ export const LEGACY_VERDICT_POLICY: VerdictPolicy = {
   reportConfidence: 0,
   routeConfidence: 0,
   acceptConfidence: 0,
+  holdConfidence: 1,
   rejectConfidence: 0,
   minorOnlyVerdict: 'reject',
   routeToHumanCodes: [],
@@ -96,6 +104,7 @@ export type DecisionReason =
   | 'minor_only'
   | 'clean'
   | 'low_confidence_accept'
+  | 'suspicion'
   | 'reject_without_snag';
 
 export interface Decision {
@@ -104,6 +113,12 @@ export interface Decision {
   /** Codes dropped by rule 1 (below report confidence) or as a related-category mismatch. */
   dropped: string[];
 }
+
+/**
+ * Only a (related-category) WRONG_CATEGORY is ignored by the hold rule. Ignoring SUBJECT_NOT_FULLY_VISIBLE
+ * too was tried on TUNE (it7 replay) and let a real snag through, so framing doubts still hold.
+ */
+const HOLD_IGNORED = new Set(['WRONG_CATEGORY']);
 
 const SEVERITY_RANK: Record<Severity, number> = { minor: 0, major: 1, critical: 2 };
 
@@ -191,6 +206,11 @@ export function decideVerdict(out: ModelOutput, declared: PhotoCategory, policy:
   } else {
     verdict = 'accept';
     reason = 'clean';
+  }
+  // A half-seen defect never lets the photo through.
+  if (verdict === 'accept' && raw.some((s) => !HOLD_IGNORED.has(s.code) && s.confidence >= policy.holdConfidence)) {
+    verdict = 'uncertain';
+    reason = 'suspicion';
   }
   // Legacy policy: any reported snag rejects.
   if (policy.minorOnlyVerdict === 'reject' && policy.routeToHumanCodes.length === 0 && kept.length > 0) {

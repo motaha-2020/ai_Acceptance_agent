@@ -4,8 +4,8 @@ type Severity = 'minor' | 'major' | 'critical';
 /**
  * Site decisions: answers to the open taxonomy questions, applied as explicit settings (T3.5).
  *
- * These are EVIDENCE-BASED DEFAULTS chosen during prompt tuning (docs/ai-tuning-log.md), not yet
- * confirmed by the TE reviewers. Each one is a single value here so a reviewer decision can be applied
+ * These are EVIDENCE-BASED DEFAULTS chosen during prompt tuning (docs/ai-tuning-log.md), confirmed by
+ * the project owner on 2026-10-03 (D1-D9 as written). Each one is a single value here so a reviewer decision can be applied
  * by editing one line. Every value is rendered into the cached prompt prefix (see `renderSiteDecisions`)
  * and into docs/snag-taxonomy.md, and the taxonomy reads its severities / evidence thresholds from here.
  * Bump TAXONOMY_VERSION (taxonomy.ts) after changing anything in this file.
@@ -67,12 +67,13 @@ export const SITE_DECISIONS = {
   routeToHumanCodes: ['WRONG_CATEGORY', 'SUBJECT_NOT_FULLY_VISIBLE'] as const,
 
   /**
-   * D9 Verdict by severity. Only major/critical snags reject. Photos with only minor snags are accepted
-   * with notes (verdict "accept" + the minor snags listed): the reviewer sees the notes, and the Phase 2
-   * autonomy gate never auto-approves a result that lists snags. Set to 'reject' to restore the old
-   * "any snag rejects" behaviour, or 'uncertain' to send them to a human without a verdict.
+   * D9 Verdict by severity. Only major/critical snags reject. Photos whose only findings are minor go to a
+   * human as "uncertain" with the minor notes listed. "accept" (accept with notes) was the requested default
+   * but on TUNE it produced strict false accepts (reviewers rejected those photos for the minor remark) and
+   * no gain on good photos (docs/ai-tuning-log.md, it2-it6 replays), so it is off until reviewers confirm
+   * that minor remarks alone should not block acceptance. reject restores "any snag rejects".
    */
-  minorOnlyVerdict: 'accept' as 'accept' | 'uncertain' | 'reject',
+  minorOnlyVerdict: 'uncertain' as 'accept' | 'uncertain' | 'reject',
 };
 
 /**

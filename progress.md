@@ -10,13 +10,13 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 | T0.2 | progress.md + ADR docs | orchestrator | done | ADR 0001 |
 | T0.3 | Shared zod schemas/enums | orchestrator | done | enums + AnalysisResult contract; builds clean |
 | T0.4 | docker-compose dev stack | orchestrator | done | infra/docker-compose.dev.yml (Docker not installed locally) |
-| T0.5 | git init + CI workflow | orchestrator | doing | git init done; CI pending GitHub remote |
+| T0.5 | git init + CI workflow | orchestrator | done | GitHub remote + CI (.github/workflows/ci.yml) green |
 
 ## P1 Data & Ingestion
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
 | T1.1 | Parse sangs docx -> snags_seed.jsonl | Data Engineer | done | tools/ingest: 108 images, 168 (image,remark) records, 99 groups; data/snags_seed.jsonl |
-| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | review | packages/checklist: 46 codes, 20 checklists, cacheable prompt builder, matchReviewerRemark() maps 165/167 seed remarks; docs/snag-taxonomy.md (generated) 8 open questions deferred by user to the training phase (resolve during P3 eval/tuning); 34 tests pass |
+| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | done | 46 codes, 20 checklists; taxonomy decisions D1-D9 (packages/checklist/src/decisions.ts) confirmed by user 2026-10-03 |
 | T1.3 | Parse LLD/inventory/mapping/fiber-test -> site seed | Data Engineer | done | data/sites/nasr3-r21c.json (zod-validated) + 4 cross-source warnings |
 | T1.4 | Import 4 sites' photos as demo/eval data | Data Engineer | done | data/photo_catalog.jsonl: 791 photos, 0 unmapped, 95 sha256 dup groups |
 | T1.5 | OCR SID checklist images | AI Engineer | done | 5 PNGs legible; all 58 items transcribed + reconciled with checklists in docs/sid-checklist-ocr-plan.md (32 photo-verifiable, 26 mapped to codes); no OCR pipeline needed |
@@ -37,9 +37,9 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 |---|---|---|---|---|
 | T3.1 | AnalysisProvider + adapters (Claude/Gemini/OpenAI) | AI Engineer (opus) | done | packages/ai: Claude/Gemini/OpenAI adapters over a shared core (strict JSON schema from zod, zod re-validation + 1 repair, retry/backoff, prompt caching, 1568px downscale, cost via src/pricing.ts = unverified config), createProvider + CascadeProvider (default gemini-3.8-flash -> claude-sonnet-5-5 at conf<0.7/uncertain/wrong-category); few-shot via provider option; shared contract unchanged; 53 tests pass offline (recorded HTTP) |
 | T3.2 | Category verification + quality gates | AI Engineer (opus) | done | local blur (Laplacian var) + dark (mean luma) gate, modes hint/short_circuit/off, thresholds calibrated on 899 real photos (flags none of the accepted set); PERSON_IN_FRAME/WRONG_CATEGORY photo-gate block in cached prefix; short_circuit off until validated on reviewer rejections |
-| T3.3 | Per-category prompts + few-shot | AI Engineer | todo | |
+| T3.3 | Per-category prompts + few-shot | AI Engineer (opus) | review | done inside T3.5: prompt ai.3 + curated few-shot fs1 (49 examples); prod needs AI_FEWSHOT_DIR/BASE_URL on worker |
 | T3.4 | Eval harness + metrics | AI Engineer (opus) | done | packages/ai/eval: dataset (snag seed via matchReviewerRemark + inferred category; assumed-good stratified, sha256-dedup, few-shot/eval splits disjoint by sha256), per-code P/R, accuracy, confusion, catch/false-accept/uncertain rates, latency, cost; jsonl+md outputs; compare command; --dry-run fake provider |
-| T3.5 | Prompt tuning loop | AI Engineer (opus) | doing | |
+| T3.5 | Prompt tuning loop | AI Engineer (opus) | review | 2026-10-03: error analysis + eval cleanup (43 category overrides, 6 good exclusions), TUNE/VAL/few-shot-pool splits, decision layer (model reports snags with evidence+confidence, versioned policy vp3 decides; offline replay), site decisions D1-D9 in packages/checklist/src/decisions.ts (need user confirmation), curated few-shot fs1 (49 examples, images via AI_FEWSHOT_DIR/AI_FEWSHOT_BASE_URL). TUNE (60): baseline FA 0% FR 43.3% unc-good 36.7% code P/R 24/44% $0.0137 -> final FA 0% FR 3.3% unc-good 63% unc-snag 73% P/R 37/42% $0.0107 p50 4.7s. VALIDATION incomplete: Anthropic API usage limit hit after 61/150 photos (58 snag+3 good): baseline FA 0% / reject 98% of snags, final FA 0% / reject 21% + uncertain 79% of snags, code P 39->37% R 42->27%; good half unmeasured - rerun VAL after raising the limit (docs/ai-tuning-log.md). Spend $7.41 |
 | T3.6 | Provider bake-off (cost/accuracy) | AI Engineer (opus) | done | 2026-10-03 bake-off 150 photos (data/eval/compare-*.md): Sonnet 5.5 = 0% false accept, best calibrated (says uncertain), fastest 4s, $11.3/1000; Gemini Flash 1.3% false accept, best code precision; Haiku 5.3% false accept (not standalone); OpenAI 93% false reject, slowest. Few-shot K=2 cut false reject 80%->51% (Sonnet), 73%->49% (Gemini). Production default: Sonnet 5.5. Next T3.5: relax cosmetic codes, clean mislabeled categories, resolve taxonomy questions. |
 
 ## P4 Web
@@ -68,10 +68,10 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P6 Reports
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T6.1 | docx generator (SID layout) | Document Generator | todo | |
-| T6.2 | Parsers -> BOM/ODF/fiber tables | Document Generator | todo | |
-| T6.3 | PDF export | Document Generator | todo | |
-| T6.4 | Golden-file test vs real SID | Document Generator | todo | |
+| T6.1 | docx generator (SID layout) | Document Generator (opus) | doing | 2026-10-03 |
+| T6.2 | Parsers -> BOM/ODF/fiber tables | Document Generator (opus) | doing | 2026-10-03 |
+| T6.3 | PDF export | Document Generator (opus) | doing | 2026-10-03 |
+| T6.4 | Golden-file test vs real SID | Document Generator (opus) | doing | 2026-10-03 |
 
 ## P7 Deploy & Hardening
 | ID | Task | Owner | Status | Notes |

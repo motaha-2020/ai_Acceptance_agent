@@ -27,7 +27,8 @@ scripts/           quality-stats.ts (quality gate calibration over the real phot
 ```ts
 import { createCascade, createProvider } from '@acceptance/ai';
 
-// Production default (pending bake-off numbers): Gemini Flash first, Claude Sonnet 5.5 on escalation.
+// Production default (T3.6 bake-off + T3.5 tuning): single Claude Sonnet 5.5 (AI_PROVIDER=claude) with the vp3 policy
+// and the curated few-shot manifest (set AI_FEWSHOT_DIR or AI_FEWSHOT_BASE_URL). The cascade stays available.
 const provider = createCascade();
 // or a single provider:
 const claude = createProvider('claude', { model: 'claude-opus-5-5', claude: { effort: 'medium' } });
@@ -133,6 +134,49 @@ then per-code recall on the frequent codes, then cost per 1000 photos and p95 la
 `--min-confidence` trades escalation rate (cost) against false accepts; rerun the cascade at 0.6 / 0.7 /
 0.8 and compare. In Phase 1 every photo is still reviewed by a human, so "uncertain" is cheap but a
 false "accept" erodes trust in the agreement metrics that gate Phase 2 autonomy.
+
+## Decision layer, splits and few-shot (T3.5)
+
+* **Perception vs decision.** The model returns `ModelOutput` (src/policy.ts): the contract fields plus, per
+  snag, `confidence` (would a reviewer raise it), `evidence` (what/where) and a required `bbox`. A
+  deterministic, versioned `VerdictPolicy` (`DEFAULT_VERDICT_POLICY`, currently `vp3`) turns it into the
+  contract `AnalysisResult`: taxonomy severities; major/critical >= 0.7 reject; major 0.35-0.7, the
+  route-to-human codes (WRONG_CATEGORY, SUBJECT_NOT_FULLY_VISIBLE), minor-only findings, a model "uncertain",
+  any reported defect >= 0.3 ("hold") or a clean accept below 0.65 -> `uncertain`; related-category
+  mismatches are ignored. `meta.raw` / `meta.decision` keep the model output and the reason. The site
+  decisions behind the rules live in `@acceptance/checklist` `SITE_DECISIONS` (decisions.ts).
+* **Eval splits.** `--split tune|val` (default `legacy` = pre-T3.5 set). A few-shot pool (3 good + 2 snag
+  per category, seed 1) is reserved first, then the rest is split by an independent seed; pool/TUNE/VAL are
+  asserted sha256-disjoint. `data/eval/category_overrides.json` (category / code corrections) and
+  `data/eval/good_exclusions.json` ("good" photos with real snags) are applied to TUNE/VAL.
+  `--few-shot-manifest curated` uses the curated manifest (must come from the pool), `--label`,
+  `--export-items`, policy knobs `--reject-confidence --route-confidence --report-confidence
+  --accept-confidence --hold-confidence --minor-only`.
+* **Offline re-scoring:** `tsx eval/cli.ts replay <run.jsonl> [policy knobs] [--items items.json] [--raw]`
+  re-applies a policy to recorded raw outputs without API calls (this is how thresholds were tuned).
+
+```bash
+pnpm --filter @acceptance/ai eval --provider claude --split tune --limit 60  --few-shot-manifest curated --label itN
+pnpm --filter @acceptance/ai eval --provider claude --split val  --limit 150 --few-shot-manifest curated --label final
+```
+
+### Few-shot in production
+
+The curated examples are a versioned manifest committed in `src/fewshot-manifest.ts` (generated from
+`eval/fewshot-curation.ts` by `pnpm --filter @acceptance/ai fewshot:build`): sha256 ids, category,
+good/snag, codes, reviewer remark, explanation. The images are customer photos and are **not in git**.
+`createProvider()` loads them through the `FewShotImageStore` port when one of these is set:
+
+* `AI_FEWSHOT_DIR=/path` - a directory with `<sha256>.jpg` files (e.g. a read-only volume), or
+* `AI_FEWSHOT_BASE_URL=http://minio:9000/<bucket>/ai-fewshot/fs1-2026-10-03` - HTTP GET of `<base>/<sha256>.jpg`.
+
+Images are fetched lazily per category, cached, and verified against their sha256. On failure the photo is
+analysed without examples and a warning is logged (`AI_FEWSHOT_STRICT=true` makes it fail instead);
+`promptVersion` shows whether examples were used (`+fs:...`). Without either variable no few-shot is used
+(measurably worse, see docs/ai-tuning-log.md). Deploy steps: run
+`pnpm --filter @acceptance/ai fewshot:build -- --export <dir>` on a machine with the raw photos, upload
+`<dir>/*.jpg` to object storage under the manifest version (or mount `<dir>`), and set one of the variables
+for the worker. No worker code change is needed. Changing the picks = new manifest version = new promptVersion.
 
 ## Tests
 
