@@ -11,7 +11,15 @@ import { parseArgs } from 'node:util';
 import type { AnalysisProvider, PhotoCategory } from '@acceptance/shared';
 import {
   CascadeProvider,
+  createFewShotSource,
   createProvider,
+  DEFAULT_VERDICT_POLICY,
+  FEW_SHOT_MANIFEST,
+  FewShotManifest,
+  LEGACY_VERDICT_POLICY,
+  type FewShotImageStore,
+  type FewShotSource,
+  type VerdictPolicy,
   isProviderName,
   loadPriceTable,
   type FewShotExample,
@@ -19,8 +27,8 @@ import {
   type ProviderOptions,
   type QualityGateMode,
 } from '../src/index.js';
-import { buildDataset, CatalogRecord, readJsonl, SeedRecord, type EvalItem } from './dataset.js';
-import { computeMetrics, EvalRecord } from './metrics.js';
+import { buildSplitDataset, CatalogRecord, CategoryOverrides, GoodExclusions, readJsonl, SeedRecord, type EvalItem, type SplitName } from './dataset.js';
+import { computeMetrics, EvalRecord, replayRecords } from './metrics.js';
 import { resolvePaths } from './paths.js';
 import { renderComparison, renderSummary, type RunInfo } from './report.js';
 import { mediaTypeOf, runEval } from './runner.js';
@@ -63,6 +71,41 @@ function loadFewShot(items: readonly EvalItem[]): (c: PhotoCategory) => FewShotE
   return (c) => examples.filter((e) => e.category === c);
 }
 
+/** Few-shot images for a manifest, read from the dataset files of the reserved pool (eval only). */
+function poolImageStore(pool: readonly EvalItem[]): FewShotImageStore {
+  const bySha = new Map(pool.map((p) => [p.sha256, p.file] as const));
+  return {
+    get: async (key) => {
+      const file = bySha.get(key.replace(/\.[a-z]+$/i, ''));
+      if (!file) throw new Error(`few-shot image ${key} is not in the reserved few-shot pool`);
+      return readFileSync(file);
+    },
+    describe: () => 'eval-pool',
+  };
+}
+
+export function parsePolicy(values: { policy?: string; 'reject-confidence'?: string; 'report-confidence'?: string; 'route-confidence'?: string; 'accept-confidence'?: string; 'minor-only'?: string }): VerdictPolicy {
+  const base = values.policy === 'legacy' ? LEGACY_VERDICT_POLICY : DEFAULT_VERDICT_POLICY;
+  const p: VerdictPolicy = { ...base };
+  const tags: string[] = [];
+  if (values['reject-confidence']) (p.rejectConfidence = Number(values['reject-confidence'])), tags.push(`rc${values['reject-confidence']}`);
+  if (values['report-confidence']) (p.reportConfidence = Number(values['report-confidence'])), tags.push(`pc${values['report-confidence']}`);
+  if (values['route-confidence']) (p.routeConfidence = Number(values['route-confidence'])), tags.push(`rt${values['route-confidence']}`);
+  if (values['accept-confidence']) (p.acceptConfidence = Number(values['accept-confidence'])), tags.push(`ac${values['accept-confidence']}`);
+  if (values['minor-only']) {
+    const m = values['minor-only'];
+    if (m !== 'accept' && m !== 'uncertain' && m !== 'reject') throw new Error('--minor-only must be accept|uncertain|reject');
+    p.minorOnlyVerdict = m;
+    tags.push(`mo-${m}`);
+  }
+  if (tags.length) p.version = `${p.version}~${tags.join('-')}`;
+  return p;
+}
+
+function readJsonIfExists<T>(file: string, schema: { parse: (v: unknown) => T }): T | undefined {
+  return existsSync(file) ? schema.parse(JSON.parse(readFileSync(file, 'utf8'))) : undefined;
+}
+
 export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise<{ jsonl: string; summary: string }> {
   const { values } = parseArgs({
     args: argv,
@@ -76,6 +119,20 @@ export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise
       'snag-share': { type: 'string', default: '0.5' },
       seed: { type: 'string', default: '1' },
       'few-shot': { type: 'string', default: '0' },
+      'few-shot-manifest': { type: 'string' },
+      'few-shot-max-side': { type: 'string' },
+      split: { type: 'string', default: 'legacy' },
+      overrides: { type: 'string' },
+      exclusions: { type: 'string' },
+      'export-items': { type: 'string' },
+      policy: { type: 'string', default: 'default' },
+      'reject-confidence': { type: 'string' },
+      'report-confidence': { type: 'string' },
+      'route-confidence': { type: 'string' },
+      'accept-confidence': { type: 'string' },
+      'minor-only': { type: 'string' },
+      'image-max-side': { type: 'string' },
+      label: { type: 'string' },
       'quality-gate': { type: 'string', default: 'hint' },
       effort: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
@@ -100,22 +157,57 @@ export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise
   if (!['off', 'hint', 'short_circuit'].includes(gate)) throw new Error(`--quality-gate must be off|hint|short_circuit`);
 
   // ---- dataset
-  const dataset = buildDataset(
+  const split = values.split as SplitName;
+  if (!['legacy', 'tune', 'val'].includes(split)) throw new Error('--split must be legacy|tune|val');
+  const evalDir = path.join(paths.dataDir, 'eval');
+  const overridesFile = values.overrides ? path.resolve(io.cwd, values.overrides) : path.join(evalDir, 'category_overrides.json');
+  const exclusionsFile = values.exclusions ? path.resolve(io.cwd, values.exclusions) : path.join(evalDir, 'good_exclusions.json');
+  const dataset = buildSplitDataset(
     {
       seed: readJsonl(path.join(paths.dataDir, 'snags_seed.jsonl'), SeedRecord),
       catalog: readJsonl(path.join(paths.dataDir, 'photo_catalog.jsonl'), CatalogRecord),
       snagFile: (p) => path.join(paths.dataDir, p),
       catalogFile: (p) => path.join(paths.rawRoot, p),
     },
-    { limit, snagShare: Number(values['snag-share']), seed: Number(values.seed), fewShotGoodPerCategory: fewShotK, fewShotSnagPerCategory: fewShotK > 0 ? 1 : 0 },
+    {
+      split,
+      limit,
+      snagShare: Number(values['snag-share']),
+      seed: Number(values.seed),
+      fewShotGoodPerCategory: fewShotK,
+      fewShotSnagPerCategory: fewShotK > 0 ? 1 : 0,
+      ...(split === 'legacy' ? {} : { overrides: readJsonIfExists(overridesFile, CategoryOverrides), exclusions: readJsonIfExists(exclusionsFile, GoodExclusions) }),
+    },
   );
+  if (values['export-items']) writeFileSync(path.resolve(io.cwd, values['export-items']), JSON.stringify(dataset.eval, null, 2));
+
+  // ---- few-shot: legacy random K per category, or a curated manifest (must come from the reserved pool)
+  let fewShot: FewShotSource | undefined;
+  let fewShotTag = fewShotK > 0 ? `fs${fewShotK}` : '';
+  if (values['few-shot-manifest']) {
+    const manifest =
+      values['few-shot-manifest'] === 'curated'
+        ? FEW_SHOT_MANIFEST
+        : FewShotManifest.parse(JSON.parse(readFileSync(path.resolve(io.cwd, values['few-shot-manifest']), 'utf8')));
+    const poolShas = new Set(dataset.pool.map((p) => p.sha256));
+    const outside = manifest.examples.filter((e) => !poolShas.has(e.id));
+    if (outside.length) throw new Error(`few-shot manifest ${manifest.version} uses ${outside.length} image(s) outside the reserved pool: ${outside.map((e) => e.id.slice(0, 12)).join(', ')}`);
+    fewShot = createFewShotSource(manifest, poolImageStore(dataset.pool));
+    fewShotTag = manifest.version;
+  } else if (fewShotK > 0) {
+    fewShot = loadFewShot(dataset.fewShot);
+  }
+  const policy = parsePolicy(values);
 
   // ---- provider(s)
   const prices = loadPriceTable(io.env.AI_PRICES_FILE);
   const shared: ProviderOptions = {
     prices,
     qualityGate: { mode: gate },
-    ...(fewShotK > 0 ? { fewShot: loadFewShot(dataset.fewShot) } : {}),
+    policy,
+    defaultFewShot: false,
+    ...(values['image-max-side'] ? { image: { maxSide: Number(values['image-max-side']), quality: 85 } } : {}),
+    ...(fewShot ? { fewShot, fewShotMaxSide: Number(values['few-shot-max-side'] ?? (values['few-shot-manifest'] === 'curated' ? FEW_SHOT_MANIFEST.maxSide : 768)) } : {}),
   };
   const leaf = (spec: { name: ProviderName; model?: string }): AnalysisProvider => {
     if (!dryRun) {
@@ -144,6 +236,9 @@ export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise
     label = spec.name;
     modelLabel = spec.model ?? 'default';
   }
+  if (split !== 'legacy') label = `${label}-${split}`;
+  if (fewShotTag) label = `${label}-${fewShotTag}`;
+  if (values.label) label = `${label}-${values.label}`;
   if (dryRun) label = `dryrun-${label}`;
 
   // ---- run
@@ -171,7 +266,7 @@ export async function runCommand(argv: string[], io: CliIO = defaultIO): Promise
     promptVersion: records.find((r) => r.promptVersion)?.promptVersion,
     dryRun,
     args: { ...values },
-    datasetStats: dataset.stats,
+    datasetStats: { ...dataset.stats, split, splitSizes: dataset.splitSizes, policy: policy.version },
   };
   writeFileSync(`${base}.run.json`, JSON.stringify(info, null, 2));
   const summary = renderSummary(metrics, info);
@@ -212,10 +307,53 @@ export function compareCommand(argv: string[], io: CliIO = defaultIO): { file: s
   return { file: outFile, markdown };
 }
 
+/**
+ * Offline re-scoring of a recorded run under another verdict policy (no API calls). With `--items` (an
+ * `--export-items` file) the records are re-annotated with the current codesUnreliable flags, so runs
+ * made by older harness versions (e.g. the baseline) are scored on the same basis.
+ */
+export function replayCommand(argv: string[], io: CliIO = defaultIO): { markdown: string; metrics: ReturnType<typeof computeMetrics> } {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: {
+      policy: { type: 'string', default: 'default' },
+      'reject-confidence': { type: 'string' },
+      'report-confidence': { type: 'string' },
+      'route-confidence': { type: 'string' },
+      'accept-confidence': { type: 'string' },
+      'minor-only': { type: 'string' },
+      items: { type: 'string' },
+      out: { type: 'string' },
+      raw: { type: 'boolean', default: false },
+    },
+    allowPositionals: true,
+  });
+  const file = positionals[0];
+  if (!file) throw new Error('usage: cli.ts replay <run.jsonl> [--policy default|legacy] [--reject-confidence x] [--report-confidence x] [--minor-only accept|uncertain|reject] [--items items.json] [--raw]');
+  let records = readJsonl(path.resolve(io.cwd, file), EvalRecord);
+  if (values.items) {
+    const items = JSON.parse(readFileSync(path.resolve(io.cwd, values.items), 'utf8')) as EvalItem[];
+    const bySource = new Map(items.map((i) => [i.source, i] as const));
+    records = records.filter((r) => bySource.has(r.source ?? '')).map((r) => {
+      const it = bySource.get(r.source ?? '');
+      return { ...r, ...(it?.codesUnreliable ? { codesUnreliable: true } : {}), expectedCodes: it?.expectedCodes ?? r.expectedCodes };
+    });
+  }
+  const policy = parsePolicy(values);
+  const scored = values.raw ? records : replayRecords(records, policy);
+  const metrics = computeMetrics(scored);
+  const info = loadRun(path.resolve(io.cwd, file)).info;
+  const markdown = renderSummary(metrics, { ...info, label: `${info.label} replay ${values.raw ? 'as-recorded' : policy.version}` });
+  if (values.out) writeFileSync(path.resolve(io.cwd, values.out), markdown);
+  io.log(markdown);
+  return { markdown, metrics };
+}
+
 export async function main(argv: string[], io: CliIO = defaultIO): Promise<void> {
   const [cmd, ...rest] = argv;
   if (cmd === 'run') await runCommand(rest, io);
   else if (cmd === 'compare') compareCommand(rest, io);
+  else if (cmd === 'replay') replayCommand(rest, io);
   else throw new Error('usage: cli.ts run [--provider gemini|claude|openai|cascade|fake] [--model X] [--dry-run] ... | compare [--last N | files...]');
 }
 

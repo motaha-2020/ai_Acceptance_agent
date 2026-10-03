@@ -6,7 +6,8 @@ import type { AnalysisMeta, AnalysisProvider, AnalysisRequest, AnalysisResult, S
 import { getSnag } from '@acceptance/checklist';
 import { ProviderError } from './errors.js';
 import { DEFAULT_IMAGE_PREP, type ImagePrepOptions } from './image.js';
-import { parseAnalysis } from './parse.js';
+import { parseModelOutput } from './parse.js';
+import { decideVerdict, DEFAULT_VERDICT_POLICY, type DecisionReason, type ModelOutput, type VerdictPolicy } from './policy.js';
 import { addUsage, costUsd, DEFAULT_PRICES, totalInputTokens, ZERO_USAGE, type PriceTable, type TokenUsage } from './pricing.js';
 import { buildPromptParts, type FewShotSource, type PromptParts } from './prompt.js';
 import { assessQuality, DEFAULT_QUALITY_THRESHOLDS, type LocalQualityIssue, type QualityReport, type QualityThresholds } from './quality.js';
@@ -44,7 +45,11 @@ export interface CoreOptions {
   image?: ImagePrepOptions;
   retry?: RetryOptions;
   qualityGate?: { mode?: QualityGateMode; thresholds?: QualityThresholds };
+  /** Longest side of few-shot reference images (default 768). */
+  fewShotMaxSide?: number;
   fewShot?: FewShotSource;
+  /** Verdict policy applied to the model output (T3.5). Default DEFAULT_VERDICT_POLICY. */
+  policy?: VerdictPolicy;
   prices?: PriceTable;
   /** Clock for latency; injected in tests. */
   now?: () => number;
@@ -57,6 +62,9 @@ export interface ExtendedMeta extends AnalysisMeta {
   repaired: boolean;
   quality?: QualityReport;
   shortCircuited?: boolean;
+  /** The model's own output before the verdict policy (per-snag confidence + evidence). */
+  raw?: ModelOutput;
+  decision?: { policy: string; reason: DecisionReason; dropped: string[] };
 }
 
 export interface ProviderOutput {
@@ -108,17 +116,20 @@ export class VisionProvider implements AnalysisProvider {
       return this.shortCircuit(req, quality, t0);
     }
 
+    const policy = this.opts.policy ?? DEFAULT_VERDICT_POLICY;
     const parts = await buildPromptParts(req, {
       image: this.opts.image,
       fewShot: this.opts.fewShot,
+      fewShotMaxSide: this.opts.fewShotMaxSide,
       quality: mode === 'hint' ? quality : undefined,
+      policyVersion: policy.version,
     });
     const call = (r: VendorRequest): Promise<VendorReply> => withRetry(() => this.vendor.complete(r), this.opts.retry);
 
     let reply = await call({ parts });
     let usage = reply.usage;
     let vendorCalls = 1;
-    let parsed = parseAnalysis(reply.text);
+    let parsed = parseModelOutput(reply.text);
     let repaired = false;
     if (!parsed.ok) {
       const first = parsed;
@@ -126,12 +137,13 @@ export class VisionProvider implements AnalysisProvider {
       usage = addUsage(usage, reply.usage);
       vendorCalls++;
       repaired = true;
-      parsed = parseAnalysis(reply.text);
+      parsed = parseModelOutput(reply.text);
       if (!parsed.ok) throw new ProviderError(this.vendor.vendor, 'invalid_output', `after repair: ${parsed.error}`);
     }
 
     // The model has the final word on quality; local findings are kept in meta.quality for analysis.
-    const result = parsed.result;
+    const decision = decideVerdict(parsed.output, req.category, policy);
+    const result = decision.result;
     return {
       result,
       meta: {
@@ -146,6 +158,8 @@ export class VisionProvider implements AnalysisProvider {
         vendorCalls,
         repaired,
         quality,
+        raw: parsed.output,
+        decision: { policy: policy.version, reason: decision.reason, dropped: decision.dropped },
       },
     };
   }

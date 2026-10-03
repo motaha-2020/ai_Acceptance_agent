@@ -1,5 +1,6 @@
 import { PhotoCategory } from '@acceptance/shared';
 import type { SnagDefinition } from './schema.js';
+import { SITE_DECISIONS } from './decisions.js';
 
 /**
  * Snag taxonomy for TE BIG-EDGE router installations (ASR-9902/9906, NCS-57C3).
@@ -13,8 +14,9 @@ import type { SnagDefinition } from './schema.js';
  * - Codes are permanent once reviewers start labelling. Rename = deprecate + add.
  * - Prefer a specific code; the *_UNTIDY codes are the fallback for the same family.
  * - Bump TAXONOMY_VERSION on every change (it is part of the cached prompt prefix).
+ * - Severities of the SID-derived codes and of RACK_DOOR_NOT_CLOSED come from SITE_DECISIONS (decisions.ts).
  */
-export const TAXONOMY_VERSION = '2026-10-03.1';
+export const TAXONOMY_VERSION = '2026-10-03.2';
 
 type Cat = PhotoCategory;
 const ALL: Cat[] = [...PhotoCategory.options];
@@ -38,12 +40,12 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleEn: 'Person visible in photo',
     titleAr: 'ظهور شخص في الصورة',
     descriptionEn:
-      'A person (body, face, legs, clothing) appears in a final acceptance photo. A hand or fingers holding a label flat for a label close-up is NOT this snag.',
+      'A person (body, face, legs, clothing) appears in a final acceptance photo. A hand or fingers holding a label or cord flat for a close-up is NOT this snag, nor is a faint reflection of the photographer in a glossy surface.',
     descriptionAr: 'ظهور شخص (جسم أو وش أو رجلين أو هدوم) في صورة التسليم النهائية. إيد ماسكة الليبول عشان يتقري في صور الليبولات مش سناج.',
     defaultSeverity: 'major',
     categories: ALL,
     visualCues: [
-      'human body, head, face, legs or clothing anywhere in the frame, including reflections in rack doors or ODF windows',
+      'human body, head, face, legs or clothing anywhere in the frame, including a clearly recognisable person reflected in rack doors or ODF windows',
       'a person working in the background of a rack or room overview shot',
     ],
     confusableWith: [],
@@ -92,7 +94,8 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     origin: 'photo_quality',
     titleEn: 'Photo does not match its category',
     titleAr: 'الصورة مش تبع البند ده',
-    descriptionEn: 'The photo shows a different subject than the category it was uploaded under (e.g. a PDU photo uploaded as rack_base).',
+    descriptionEn:
+      'The photo shows a different subject than the category it was uploaded under (e.g. a PDU photo uploaded as rack_base). A close-up of labels, cords or items of a related category (e.g. ODF labels under odf_cross_connect) is not this snag.',
     descriptionAr: 'الصورة متصورة لحاجة غير البند اللي اترفعت عليه (مثلاً صورة PDU مترفوعة على قاعدة الراك).',
     defaultSeverity: 'major',
     categories: ALL,
@@ -184,11 +187,12 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     origin: 'snag_docs',
     titleEn: 'Cardboard, packaging or debris left',
     titleAr: 'كرتون أو مخلفات متسابة',
-    descriptionEn: 'Cardboard boxes, plastic wrap, cable-tie off-cuts, tools or installation waste left in the rack, under the floor or around the site.',
+    descriptionEn:
+      'Clear installer leftovers - cardboard boxes, plastic bags or wrapping, spare material, tools - left in or at the installation (rack, ODF, tray, rack base). Pre-existing building dirt and a few cable-tie off-cuts are not this code (see DUST_OR_DIRT).',
     descriptionAr: 'كراتين أو نايلون أو بواقي رباطات أو عدة أو مخلفات تركيب متسابة في الراك أو تحت البلاط أو في الموقع.',
     defaultSeverity: 'major',
     categories: ALL,
-    visualCues: ['brown cardboard box inside a rack', 'plastic bags / wrapping', 'cut cable-tie tails or offcuts on the floor', 'tools left behind'],
+    visualCues: ['brown cardboard box inside a rack', 'plastic bags / wrapping inside the rack or on the tray', 'boxes or spare material stacked at the rack base', 'tools left behind'],
     confusableWith: ['SPARE_LEFT_IN_RACK', 'DUST_OR_DIRT'],
     reviewerPhrasesAr: ['نشيل الكرتونه من جواه الراك'],
     fixInstructionAr: 'نشيل الكرتون وأي مخلفات من الراك والموقع وننضف المكان.',
@@ -200,7 +204,8 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     origin: 'snag_docs',
     titleEn: 'Dust or dirt on rack / ODF / equipment',
     titleAr: 'تراب على الراك أو الاو دي اف',
-    descriptionEn: 'Visible dust, cement powder or dirt on the rack floor, equipment tops, ODF or trays after installation.',
+    descriptionEn:
+      'Visible dust, cement powder or dirt on the installed equipment: rack floor, equipment tops, ODF or new trays, or a few cable-tie off-cuts left behind. Pre-existing building dirt (old floors, the void under the raised floor) is not a snag.',
     descriptionAr: 'تراب أو بودرة أسمنت أو وساخة باينة على أرضية الراك أو فوق الأجهزة أو على الاو دي اف أو التراي بعد التركيب.',
     defaultSeverity: 'minor',
     categories: ALL,
@@ -234,9 +239,9 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleEn: 'Rack door left open / not latched',
     titleAr: 'باب الراك مفتوح أو مش مقفول صح',
     descriptionEn:
-      'A rack door (front, rear or side) that is not the one opened for the shot is left open or not latched properly. Doors deliberately opened to photograph the inside are acceptable.',
+      'A rack door is visibly ajar / not latched, or a door is open in a shot meant to show the closed rack (closed-rack overview, final front/back shot). Doors opened to photograph the inside are normal and are not this snag.',
     descriptionAr: 'باب من أبواب الراك (قدام أو ورا أو جنب) غير الباب اللي اتفتح عشان التصوير متساب مفتوح أو مش مقفول صح.',
-    defaultSeverity: 'minor',
+    defaultSeverity: SITE_DECISIONS.rackDoorSeverity,
     categories: ['rack', 'pdu', 'router', 'odf_cross_connect', 'odf_tie'],
     visualCues: ['rear door visibly open behind the open front', 'door ajar / misaligned, latch not engaged', 'closed-rack overview with a door standing open'],
     confusableWith: [],
@@ -599,7 +604,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleAr: 'قاعدة الراك مش مظبوطة على الميزان أو مستوى البلاط',
     descriptionEn: 'The metal base is not level (spirit level bubble off-centre) or its top is not flush with the raised-floor tiles.',
     descriptionAr: 'القاعدة الحديد مش مظبوطة على الميزان (الفقاعة مش في النص) أو سطحها مش في مستوى البلاط.',
-    defaultSeverity: 'major',
+    defaultSeverity: SITE_DECISIONS.sidDerivedSeverity,
     categories: ['rack_base'],
     visualCues: ['spirit level bubble off-centre', 'base frame top higher or lower than surrounding tiles', 'frame visibly twisted'],
     confusableWith: ['RACK_BASE_BOLTS_MISSING', 'RACK_FLOOR_GAP'],
@@ -615,7 +620,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleAr: 'الراك مش على استقامة الصف أو حرف البلاط',
     descriptionEn: 'Rack front is not aligned with adjacent racks or with the floor-tile edge.',
     descriptionAr: 'وش الراك مش على استقامة الراكات اللي جنبه أو مع حرف البلاط.',
-    defaultSeverity: 'minor',
+    defaultSeverity: SITE_DECISIONS.sidDerivedSeverity,
     categories: ['rack'],
     visualCues: ['rack front set back or forward relative to neighbours', 'rack rotated relative to the tile grid'],
     confusableWith: ['RACK_FLOOR_GAP'],
@@ -651,7 +656,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     descriptionAr: 'باتش أو كابل باور/أرضي أو أب لينك أو بريكر في الـ PDU أو جهاز من غير ليبول. ليبول اسم الجهاز ليه كود HOSTNAME_LABEL_MISSING.',
     defaultSeverity: 'major',
     categories: LABELLED,
-    visualCues: ['cord ends without a flag label', 'power cable without label near termination', 'blank label slots on PDU breakers'],
+    visualCues: ['cord ends without a flag label', 'power cable without label near termination', SITE_DECISIONS.blankPduBreakerSlotsAreSnag ? 'blank label slots on PDU breakers' : 'a used PDU breaker or its feed cable without a label (blank slots on unused breakers are fine)'],
     confusableWith: ['HOSTNAME_LABEL_MISSING', 'LABEL_INFO_INCOMPLETE'],
     reviewerPhrasesAr: ['نحط الليبول', 'عدم وجود ليبول'],
     fixInstructionAr: 'نحط ليبول على كل كابل أو باتش ناقص بالفورمات المتفق عليه (From / To).',
@@ -698,7 +703,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleAr: 'بيانات الليبول ناقصة أو مش بالفورمات',
     descriptionEn: 'Label is readable but lacks required info (From / To, port, circuit ID, power type/level) or is hand-written instead of printed.',
     descriptionAr: 'الليبول بيتقري بس ناقص بيانات (From / To، البورت، Circuit ID، نوع الباور) أو مكتوب بخط اليد مش مطبوع.',
-    defaultSeverity: 'major',
+    defaultSeverity: SITE_DECISIONS.sidDerivedSeverity,
     categories: LABELLED,
     visualCues: ['only one end written (From without To)', 'hand-written marker label', 'power label without feed/level info'],
     confusableWith: ['LABEL_DAMAGED', 'LABEL_MISSING'],
@@ -781,7 +786,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     descriptionEn:
       'Power or earth cables not bundled with tie-wraps, not on their own side of the tray/ladder, or run together with fiber/UTP (SID requires ~30 cm separation).',
     descriptionAr: 'كابلات الباور أو الأرضي مش متربطة بتاي راب كويس، أو مش في الجنب بتاعها من التراي، أو ماشية مع الفايبر أو الـ UTP (المطلوب حوالي 30 سم فصل).',
-    defaultSeverity: 'major',
+    defaultSeverity: SITE_DECISIONS.sidDerivedSeverity,
     categories: POWER,
     visualCues: ['power cables crossing over each other on the ladder', 'missing or irregular tie-wraps', 'power and data in the same bundle/tray side'],
     confusableWith: ['POWER_PLUG_EXPOSED', 'MANAGEMENT_CABLE_UNTIDY'],
@@ -833,7 +838,7 @@ export const SNAG_TAXONOMY: readonly SnagDefinition[] = [
     titleAr: 'شيت الاو دي اف مش موجود أو مش مقروء',
     descriptionEn: 'The printed port utilization sheet is not posted in a sleeve on the rack door, or it is unreadable/incomplete.',
     descriptionAr: 'شيت توزيع بورتات الاو دي اف مش متعلق في جراب على باب الراك، أو مش مقروء أو ناقص.',
-    defaultSeverity: 'major',
+    defaultSeverity: SITE_DECISIONS.sidDerivedSeverity,
     categories: ['odf_sheet', 'rack'],
     visualCues: ['rack door without the plastic sleeve and sheet', 'sheet hand-written or with empty columns', 'sheet torn / wet / faded'],
     confusableWith: ['PHOTO_BLURRY'],

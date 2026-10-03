@@ -1,11 +1,12 @@
 /**
- * One JSON schema for AnalysisResult, derived from the zod contract in @acceptance/shared, then
+ * One JSON schema for the model output (ModelOutput in policy.ts: the shared AnalysisResult plus per-snag
+ * confidence/evidence and a required bbox), derived from zod, then
  * adapted to each vendor's structured-output dialect. The zod schema stays the validator of record:
  * every response is re-validated with zod regardless of what the vendor enforced.
  */
-import { AnalysisResult } from '@acceptance/shared';
 import { SNAG_CODES } from '@acceptance/checklist';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { ModelOutput } from './policy.js';
 
 export type JsonSchema = { [key: string]: unknown };
 
@@ -28,7 +29,7 @@ const UNSUPPORTED_KEYWORDS = ['minimum', 'maximum', 'exclusiveMinimum', 'exclusi
  * taxonomy enum so models cannot invent codes. Range constraints are moved into descriptions.
  */
 export function baseAnalysisSchema(codes: readonly string[] = SNAG_CODES): JsonSchema {
-  const raw = zodToJsonSchema(AnalysisResult, { $refStrategy: 'none', target: 'jsonSchema7' }) as JsonSchema;
+  const raw = zodToJsonSchema(ModelOutput, { $refStrategy: 'none', target: 'jsonSchema7' }) as JsonSchema;
   delete raw.$schema;
   delete raw.definitions;
   const props = raw.properties as JsonSchema;
@@ -37,6 +38,8 @@ export function baseAnalysisSchema(codes: readonly string[] = SNAG_CODES): JsonS
   const snags = props.snags as JsonSchema;
   const snagProps = (snags.items as JsonSchema).properties as JsonSchema;
   snagProps.code = { type: 'string', enum: [...codes], description: 'Snag code from the taxonomy, exactly as written.' };
+  (snagProps.confidence as JsonSchema).description = 'Probability (0..1) that a reviewer would raise exactly this remark.';
+  (snagProps.evidence as JsonSchema).description = 'What you see and where in the photo (English), specific enough to locate the defect.';
   const bbox = snagProps.bbox as JsonSchema;
   bbox.description = 'Bounding box of the defect, fractions 0..1 of image width/height, x/y = top-left corner.';
   return mapSchema(raw, (n) => {

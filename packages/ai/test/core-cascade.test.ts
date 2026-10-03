@@ -3,7 +3,7 @@ import type { AnalysisMeta, AnalysisProvider, AnalysisResult } from '@acceptance
 import { VisionProvider, type VendorClient, type VendorReply, type VendorRequest } from '../src/core.js';
 import { CascadeProvider, escalationReasons, DEFAULT_CASCADE_POLICY } from '../src/cascade.js';
 import { ProviderError } from '../src/errors.js';
-import { ACCEPT, flatJpeg, noiseJpeg, REJECT } from './helpers.js';
+import { ACCEPT, flatJpeg, noiseJpeg, REJECT, REJECT_RAW } from './helpers.js';
 
 const usage = { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 5000, cacheWriteTokens: 0 };
 
@@ -29,7 +29,7 @@ describe('VisionProvider core', async () => {
   const image = { data: await noiseJpeg(), mediaType: 'image/jpeg' as const };
 
   it('returns a validated result with cost and prompt version', async () => {
-    const vendor = new ScriptedVendor([JSON.stringify(REJECT)]);
+    const vendor = new ScriptedVendor([JSON.stringify(REJECT_RAW)]);
     const p = new VisionProvider(vendor, { prices, retry: fastRetry });
     const { result, meta } = await p.analyze({ image, category: 'duct', context: { hostname: 'R21C-ASR' } });
     expect(result.verdict).toBe('reject');

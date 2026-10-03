@@ -1,6 +1,8 @@
 import type { AnalysisProvider } from '@acceptance/shared';
 import { CascadeProvider, type CascadePolicy } from './cascade.js';
 import { VisionProvider, type CoreOptions, type VendorClient } from './core.js';
+import { fewShotFromEnv } from './fewshot.js';
+import { FEW_SHOT_MANIFEST } from './fewshot-manifest.js';
 import { ClaudeVendor, type ClaudeOptions } from './providers/claude.js';
 import { FakeVendor, type FakeOptions } from './providers/fake.js';
 import { GeminiVendor, type GeminiOptions } from './providers/gemini.js';
@@ -16,6 +18,12 @@ export type ProviderOptions = CoreOptions & {
   fake?: FakeOptions;
   /** Shortcut that overrides the vendor-specific model option. */
   model?: string;
+  /**
+   * When no `fewShot` source is given, use the bundled curated manifest with images from
+   * AI_FEWSHOT_DIR / AI_FEWSHOT_BASE_URL (if set). Default true; the eval CLI passes false.
+   */
+  defaultFewShot?: boolean;
+  env?: NodeJS.ProcessEnv;
 };
 
 export function isProviderName(v: string): v is ProviderName {
@@ -38,7 +46,8 @@ export function createVendor(name: ProviderName, options: ProviderOptions = {}):
 
 /** One provider by name. API keys come from options or ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY. */
 export function createProvider(name: ProviderName, options: ProviderOptions = {}): VisionProvider {
-  return new VisionProvider(createVendor(name, options), options);
+  const fewShot = options.fewShot ?? (options.defaultFewShot === false || name === 'fake' ? undefined : fewShotFromEnv(FEW_SHOT_MANIFEST, options.env));
+  return new VisionProvider(createVendor(name, options), { ...options, ...(fewShot ? { fewShot, fewShotMaxSide: options.fewShotMaxSide ?? FEW_SHOT_MANIFEST.maxSide } : {}) });
 }
 
 export interface CascadeSpec {

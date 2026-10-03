@@ -46,7 +46,9 @@ describe('schema conversion', () => {
     });
     const detected = (s.properties as JsonSchema).detectedCategory as JsonSchema;
     expect(detected.anyOf).toEqual(expect.arrayContaining([{ type: 'null' }]));
-    expect(snagItemProps(s).bbox).toHaveProperty('anyOf');
+    expect(snagItemProps(s).bbox).not.toHaveProperty('anyOf'); // bbox is required in the model output (T3.5)
+    expect(snagItemProps(s)).toHaveProperty('confidence');
+    expect(snagItemProps(s)).toHaveProperty('evidence');
   });
 
   it('gemini: no additionalProperties anywhere', () => {

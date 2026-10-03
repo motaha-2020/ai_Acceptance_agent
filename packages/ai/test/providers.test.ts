@@ -9,7 +9,7 @@ import { ClaudeVendor } from '../src/providers/claude.js';
 import { GeminiVendor } from '../src/providers/gemini.js';
 import { OpenAIVendor } from '../src/providers/openai.js';
 import { createProvider } from '../src/factory.js';
-import { noiseJpeg, REJECT, replayFetch, type Recorded } from './helpers.js';
+import { noiseJpeg, REJECT_RAW as REJECT, replayFetch, type Recorded } from './helpers.js';
 
 const noRetry = { maxAttempts: 1, baseDelayMs: 1, maxDelayMs: 1 };
 const twoTries = { maxAttempts: 2, baseDelayMs: 1, maxDelayMs: 1, sleep: async () => {} };
@@ -127,7 +127,7 @@ describe('adapters (recorded HTTP)', async () => {
     ]);
     const p = new VisionProvider(new OpenAIVendor({ apiKey: 'test', fetch }), { retry: noRetry });
     const { result, meta } = await p.analyze(req);
-    expect(result.snags[0]?.bbox).toBeUndefined();
+    expect(result.snags[0]?.bbox).toEqual({ x: 0, y: 0, w: 1, h: 1 }); // missing bbox -> whole frame
     expect(meta.repaired).toBe(true);
     expect(meta.inputTokens).toBe(18_000);
     expect(calls).toHaveLength(2);

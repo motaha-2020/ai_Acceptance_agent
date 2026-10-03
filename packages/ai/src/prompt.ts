@@ -12,7 +12,7 @@ import { prepareImage, type ImagePrepOptions, type PreparedImage } from './image
 import type { QualityReport } from './quality.js';
 
 /** Template version of the text this module adds on top of the checklist prompt. Bump on any change. */
-export const ADAPTER_PROMPT_VERSION = 'ai.1';
+export const ADAPTER_PROMPT_VERSION = 'ai.2';
 
 /**
  * T3.2 photo gate, evaluated by the model before the checklist. Local pixel checks (blur/dark) run
@@ -20,13 +20,14 @@ export const ADAPTER_PROMPT_VERSION = 'ai.1';
  */
 export const PHOTO_GATE_INSTRUCTIONS = [
   '# Step 1 - photo gate (do this before the checklist)',
-  '- PERSON_IN_FRAME: if a person, face or body (arm, leg, torso) is visible anywhere in the frame, emit PERSON_IN_FRAME and add "person_in_frame" to qualityIssues. Exception: fingers or a hand only holding a label or cable flat for a close-up are normal and are NOT a snag.',
-  '- WRONG_CATEGORY: decide which category id from the category list best describes the main subject. If it is not the declared category (and not a close-up of an item that belongs to the declared category), set categoryMatches=false, detectedCategory=<that id>, emit WRONG_CATEGORY, verdict "reject", and skip Step 2.',
-  '- PHOTO_BLURRY / PHOTO_TOO_DARK: emit only when the defect prevents judging the checklist (text on labels unreadable, cable routing not distinguishable). Mild softness or dim but readable light is acceptable.',
+  '- PERSON_IN_FRAME: apply site decision D2 (a hand holding a label or cord for a close-up is fine; any other body part, a face or a person in the background is a snag). Add "person_in_frame" to qualityIssues when you emit it.',
+  '- Category: decide the main subject. It is the SAME subject when it is the declared category or one of its related categories (listed in the category block), including close-ups of its labels, cords, ports or parts. Only when the subject is clearly something else: set categoryMatches=false, detectedCategory=<that id>, emit WRONG_CATEGORY, then still do Step 2 and report clear snags you can see.',
+  '- SUBJECT_NOT_FULLY_VISIBLE: only when the part needed to judge the checklist is cut off or hidden. A close-up showing part of the item is the normal way these photos are taken and is not a snag.',
+  '- PHOTO_BLURRY / PHOTO_TOO_DARK: emit only when the defect prevents judging the checklist (label text unreadable, cable routing not distinguishable). Mild softness or dim but readable light is acceptable; racks are black and often dark.',
   '- Local measurements may be supplied with the photo. They are hints from a pixel statistic, not proof: confirm them visually.',
   '',
   '# Step 2 - checklist',
-  'Apply the declared category checklist below to the photo. Reference example images, when present, illustrate the standard; never report defects seen only in a reference example.',
+  'Apply the declared category checklist below to the photo. Reference example images, when present, are calibration: ACCEPTED examples show normal finished work (features visible in them are not snags), REJECTED examples show a real snag and where it is. Never report a defect that you see only in a reference example.',
 ].join('\n');
 
 export interface FewShotExample {
@@ -39,10 +40,12 @@ export interface FewShotExample {
   codes: readonly string[];
   /** Optional reviewer note, e.g. the original Arabic remark. */
   note?: string;
+  /** Optional curator explanation (English): why it was accepted, or what the snag is and where. */
+  explanation?: string;
 }
 
-/** Few-shot examples by category; return [] for none. */
-export type FewShotSource = (category: PhotoCategory) => readonly FewShotExample[];
+/** Few-shot examples by category; return [] for none. May be async (e.g. images loaded from object storage). */
+export type FewShotSource = (category: PhotoCategory) => readonly FewShotExample[] | Promise<readonly FewShotExample[]>;
 
 export interface PreparedFewShot {
   text: string;
@@ -63,7 +66,10 @@ export function fewShotLabel(ex: FewShotExample, index: number): string {
     ex.kind === 'good'
       ? `Reference example ${index + 1} (NOT the photo to inspect): an ACCEPTED ${ex.category} photo.`
       : `Reference example ${index + 1} (NOT the photo to inspect): a REJECTED ${ex.category} photo with snag codes ${ex.codes.join(', ') || 'OTHER_SNAG'}.`;
-  return ex.note ? `${head} Reviewer remark: ${ex.note}` : head;
+  const parts = [head];
+  if (ex.note) parts.push(`Reviewer remark: ${ex.note}`);
+  if (ex.explanation) parts.push(ex.explanation);
+  return parts.join(' ');
 }
 
 export function photoText(req: AnalysisRequest, quality?: QualityReport): string {
@@ -103,22 +109,24 @@ export interface BuildPromptOptions {
   fewShot?: FewShotSource;
   fewShotMaxSide?: number;
   quality?: QualityReport;
+  /** Verdict policy version (part of promptVersion so eval regressions are keyed on it). */
+  policyVersion?: string;
 }
 
 export async function buildPromptParts(req: AnalysisRequest, opts: BuildPromptOptions): Promise<PromptParts> {
   const base = buildCategoryPrompt(req.category);
-  const examples = opts.fewShot?.(req.category) ?? [];
+  const examples = (await opts.fewShot?.(req.category)) ?? [];
   const [photo, fewShot] = await Promise.all([
     prepareImage(req.image.data, opts.image),
     prepareFewShot(examples, opts.fewShotMaxSide ?? 768),
   ]);
-  const fsTag = examples.length ? `+fs:${fnv1a(examples.map((e) => e.id).join(','))}` : '';
+  const fsTag = examples.length ? `+fs:${fnv1a(fewShot.map((f) => f.text).join('|') + examples.map((e) => e.id).join(','))}` : '';
   return {
     system: `${base.prefix}\n\n${PHOTO_GATE_INSTRUCTIONS}`,
     categoryBlock: base.categoryBlock,
     fewShot,
     photo,
     photoText: photoText(req, opts.quality),
-    promptVersion: `${base.promptVersion}+${ADAPTER_PROMPT_VERSION}.${fnv1a(PHOTO_GATE_INSTRUCTIONS)}${fsTag}`,
+    promptVersion: `${base.promptVersion}+${ADAPTER_PROMPT_VERSION}.${fnv1a(PHOTO_GATE_INSTRUCTIONS)}${fsTag}${opts.policyVersion ? `+${opts.policyVersion}` : ''}`,
   };
 }

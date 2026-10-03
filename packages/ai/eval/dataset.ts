@@ -43,6 +43,10 @@ export interface EvalItem {
   /** Reviewer remarks (snag photos) for reports. */
   remarks: string[];
   source: string;
+  /** Expected codes are known to be unreliable (remark does not match the picture): excluded from code metrics. */
+  codesUnreliable?: boolean;
+  /** Set when an entry of data/eval/category_overrides.json changed this item. */
+  overridden?: string;
 }
 
 export interface DatasetOptions {
@@ -258,4 +262,147 @@ export function readJsonl<T>(file: string, schema: z.ZodType<T>): T[] {
     .split(/\r?\n/)
     .filter((l) => l.trim())
     .map((l) => schema.parse(JSON.parse(l)));
+}
+
+// ───────────────────────────── T3.5: overrides, exclusions, tune/val splits ─────────────────────────────
+
+/**
+ * data/eval/category_overrides.json: corrections for eval-label noise (hypotheses for human reviewers).
+ * `match` is the item's source path (catalog relPath or snag imagePath) or its sha256.
+ */
+export const CategoryOverride = z.object({
+  match: z.string().min(1),
+  category: PhotoCategory.optional(),
+  /** Replace the expected codes (snag photos). */
+  expectedCodes: z.array(z.string()).optional(),
+  /** The remark does not describe this picture: keep the photo for verdict metrics, drop it from code metrics. */
+  codesUnreliable: z.boolean().optional(),
+  reason: z.string().min(1),
+});
+export type CategoryOverride = z.infer<typeof CategoryOverride>;
+export const CategoryOverrides = z.object({ version: z.string(), note: z.string().optional(), entries: z.array(CategoryOverride) });
+export type CategoryOverrides = z.infer<typeof CategoryOverrides>;
+
+/** data/eval/good_exclusions.json: "assumed good" photos that visibly contain a real snag. */
+export const GoodExclusion = z.object({ match: z.string().min(1), reason: z.string().min(1) });
+export const GoodExclusions = z.object({ version: z.string(), note: z.string().optional(), entries: z.array(GoodExclusion) });
+export type GoodExclusions = z.infer<typeof GoodExclusions>;
+
+const matchesEntry = (it: EvalItem, m: string): boolean => it.source === m || it.sha256 === m;
+
+/** Applies the first matching override to each item (copies); also returns the entries that matched nothing. */
+export function applyOverrides(items: readonly EvalItem[], overrides: CategoryOverrides | undefined): { items: EvalItem[]; unmatched: string[] } {
+  const entries = overrides?.entries ?? [];
+  const used = new Set<string>();
+  const out = items.map((it) => {
+    const e = entries.find((o) => matchesEntry(it, o.match));
+    if (!e) return it;
+    used.add(e.match);
+    return {
+      ...it,
+      ...(e.category ? { category: e.category } : {}),
+      ...(e.expectedCodes ? { expectedCodes: [...e.expectedCodes].sort() } : {}),
+      ...(e.codesUnreliable ? { codesUnreliable: true } : {}),
+      overridden: e.reason,
+    };
+  });
+  return { items: out, unmatched: entries.filter((e) => !used.has(e.match)).map((e) => e.match) };
+}
+
+export type SplitName = 'legacy' | 'tune' | 'val';
+
+export interface SplitOptions extends DatasetOptions {
+  split: SplitName;
+  /** Few-shot pool reserved before splitting (never evaluated). Defaults 3 good + 2 snag per category. */
+  poolGoodPerCategory?: number;
+  poolSnagPerCategory?: number;
+  /** Seed of the tune/val assignment (independent of the sampling seed). Default 101. */
+  splitSeed?: number;
+  /** Snag photos assigned to TUNE (the rest go to VAL). Default 30. */
+  tuneSnag?: number;
+  /** Share of the remaining good photos assigned to TUNE. Default 0.4. */
+  tuneGoodShare?: number;
+  overrides?: CategoryOverrides;
+  exclusions?: GoodExclusions;
+}
+
+export interface SplitDataset extends Dataset {
+  split: SplitName;
+  /** The full reserved few-shot pool (curated manifests must pick from it). */
+  pool: EvalItem[];
+  splitSizes: { tuneSnag: number; tuneGood: number; valSnag: number; valGood: number; pool: number; excludedGood: number; unmatchedOverrides: string[] };
+}
+
+const bucket = (sha: string, seed: number): number => parseInt(fnv1a(`${seed}:split:${sha}`).slice(0, 6), 16) % 1000;
+
+/** The legacy random few-shot selection (K good + 1 snag per category) taken from the pool. */
+function legacyFewShot(pool: readonly EvalItem[], opts: DatasetOptions): EvalItem[] {
+  const seed = opts.seed ?? 1;
+  return [
+    ...takePerCategory(pool.filter((p) => p.kind === 'good'), opts.fewShotGoodPerCategory ?? 0, seed),
+    ...takePerCategory(pool.filter((p) => p.kind === 'snag'), opts.fewShotSnagPerCategory ?? 0, seed),
+  ];
+}
+
+/**
+ * T3.5 splits. The few-shot pool is reserved first, exactly like the legacy builder (same seed, same
+ * per-category order, categories inferred WITHOUT overrides), so the legacy `--few-shot K` selection
+ * (K <= poolGoodPerCategory, 1 snag per category) is always a subset of the pool. Overrides and exclusions
+ * are applied afterwards; the remaining photos go to TUNE or VAL by a separate seed. Pool, TUNE and VAL are
+ * asserted disjoint by sha256. `legacy` returns the pre-T3.5 dataset (buildDataset) for old comparisons.
+ */
+export function buildSplitDataset(src: DatasetSources, opts: SplitOptions): SplitDataset {
+  const seed = opts.seed ?? 1;
+  const snag0 = buildSnagItems(src);
+  const { items: good0, excluded } = buildGoodItems(src, new Set(snag0.map((s) => s.sha256)));
+  const pool = [
+    ...takePerCategory(good0, opts.poolGoodPerCategory ?? 3, seed),
+    ...takePerCategory(snag0.filter((s) => s.expectedCodes.length > 0), opts.poolSnagPerCategory ?? 2, seed),
+  ];
+  const poolShas = new Set(pool.map((p) => p.sha256));
+
+  const snagO = applyOverrides(snag0, opts.overrides);
+  const goodO = applyOverrides(good0, opts.overrides);
+  const excludedShas = new Set<string>();
+  for (const g of goodO.items) if (opts.exclusions?.entries.some((e) => matchesEntry(g, e.match))) excludedShas.add(g.sha256);
+  const unmatchedOverrides = snagO.unmatched.filter((m) => goodO.unmatched.includes(m));
+
+  const splitSeed = opts.splitSeed ?? 101;
+  const snagRest = seeded(snagO.items.filter((s) => !poolShas.has(s.sha256)), splitSeed);
+  const tuneSnagN = Math.min(opts.tuneSnag ?? 30, snagRest.length);
+  const tuneSnag = snagRest.slice(0, tuneSnagN);
+  const valSnag = snagRest.slice(tuneSnagN);
+  const goodRest = goodO.items.filter((g) => !poolShas.has(g.sha256) && !excludedShas.has(g.sha256));
+  const cut = Math.round((opts.tuneGoodShare ?? 0.4) * 1000);
+  const tuneGood = goodRest.filter((g) => bucket(g.sha256, splitSeed) < cut);
+  const valGood = goodRest.filter((g) => bucket(g.sha256, splitSeed) >= cut);
+  assertDisjoint(pool, [...tuneSnag, ...tuneGood]);
+  assertDisjoint(pool, [...valSnag, ...valGood]);
+  assertDisjoint([...tuneSnag, ...tuneGood], [...valSnag, ...valGood]);
+  const splitSizes = { tuneSnag: tuneSnag.length, tuneGood: tuneGood.length, valSnag: valSnag.length, valGood: valGood.length, pool: pool.length, excludedGood: excludedShas.size, unmatchedOverrides };
+
+  if (opts.split === 'legacy') return { ...buildDataset(src, opts), split: 'legacy', pool, splitSizes };
+
+  const [snagPool, goodPool] = opts.split === 'tune' ? [tuneSnag, tuneGood] : [valSnag, valGood];
+  const nSnag = Math.min(snagPool.length, Math.round(opts.limit * (opts.snagShare ?? 0.5)));
+  const nGood = Math.min(goodPool.length, opts.limit - nSnag);
+  const items = [...snagPool.slice(0, nSnag), ...stratifiedSample(goodPool, nGood, seed)];
+  const evalByCategory: Record<string, number> = {};
+  for (const it of items) evalByCategory[it.category] = (evalByCategory[it.category] ?? 0) + 1;
+  return {
+    split: opts.split,
+    eval: items,
+    fewShot: legacyFewShot(pool, opts),
+    pool,
+    stats: {
+      snagPhotosAvailable: snag0.length,
+      snagPhotosWithoutCodes: snag0.filter((s) => s.expectedCodes.length === 0).length,
+      goodPhotosAvailable: good0.length,
+      goodExcludedAsSnag: excluded,
+      evalSnag: nSnag,
+      evalGood: nGood,
+      evalByCategory,
+    },
+    splitSizes,
+  };
 }

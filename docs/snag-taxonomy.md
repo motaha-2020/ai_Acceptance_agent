@@ -1,13 +1,27 @@
 # Snag taxonomy (for reviewer approval)
 
-Version: `2026-10-03.1` — generated from `packages/checklist/src/taxonomy.ts`; do not edit by hand.
+Version: `2026-10-03.2` — generated from `packages/checklist/src/taxonomy.ts`; do not edit by hand.
 
 These codes are what the AI emits and what reviewers pick when labelling. Please check for each row: is the meaning right, is the Arabic how you would say it, is the severity right, and does it apply to the right photo categories.
 
-Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance; **minor** = cosmetic but still fixed before acceptance (any snag rejects the photo).
+Severity: **critical** = safety/service risk; **major** = must be fixed before acceptance (rejects the photo); **minor** = cosmetic, reported as a note to fix but does not reject the photo on its own (decision D9 in `packages/checklist/src/decisions.ts`).
 Origin: `snag_docs` = seen in the reviewers' snag Word files; `sid_checklist` = from the SID acceptance checklist; `photo_quality` = retake reasons; `catch_all` = for issues not yet in the list.
 
 Total: 46 codes.
+
+## Site decisions (defaults pending reviewer confirmation)
+
+Evidence-based defaults from prompt tuning (T3.5, docs/ai-tuning-log.md). Each is one setting in `packages/checklist/src/decisions.ts`.
+
+- **D1** Rack doors: open doors are normal in shots of the rack interior. Emit RACK_DOOR_NOT_CLOSED only when the shot is meant to show the closed rack (closed-rack overview, final front/back shot) and a door is open, or when a door is visibly ajar / not latched.
+- **D2** People: a hand or fingers holding a label or cord flat for a close-up is normal and NOT a snag; any other body part, a face or a person in the background is PERSON_IN_FRAME; a faint reflection of the photographer in a glossy door or ODF window is NOT a snag unless the person is clearly recognisable.
+- **D3** SID-derived codes (LABEL_INFO_INCOMPLETE, RACK_BASE_NOT_LEVEL, RACK_MISALIGNED, POWER_CABLE_ROUTING_UNTIDY, ODF_SHEET_MISSING_OR_UNREADABLE) have no reviewer evidence yet: report them only with specific, clearly visible evidence and confidence >= 0.85; they are minor.
+- **D4** PDU breakers: blank label slots on unused PDU breakers are NOT a snag; only a used breaker or cable without its label is LABEL_MISSING.
+- **D5** Critical severity is reserved for POWER_CABLE_DAMAGED.
+- **D6** Related categories: a close-up of the labels, cords or an item belonging to a related category of the declared one (listed in the category block) is the SAME subject, not WRONG_CATEGORY.
+- **D7** Housekeeping: pre-existing building dirt (old exchange floor, the void under the raised floor, walls, ceiling) is NOT a snag. DUST_OR_DIRT = dust on the installed equipment, rack interior or ODF, or a few cable-tie off-cuts. PACKAGING_OR_DEBRIS_LEFT = clear installer leftovers only (cartons, bags, wrapping, spare material, tools) in or at the installation.
+- **D8** Photo-gate codes WRONG_CATEGORY and SUBJECT_NOT_FULLY_VISIBLE route the photo to a human (verdict uncertain) instead of rejecting it, unless a clear major snag is also present.
+- **D9** Only major/critical snags reject; photos with only minor snags are accepted with notes.
 
 | # | Code | العربي | English | Severity | Origin | Categories |
 |---|---|---|---|---|---|---|
@@ -41,21 +55,21 @@ Total: 46 codes.
 | 28 | `RACK_FLOOR_GAP` | مسافة بين الراك والبلاط | Gap between rack and floor tiles | major | snag_docs | rack, rack_base |
 | 29 | `WALL_OPENING_NOT_SEALED` | الشنيشة (فتحة الحيطة) مش مقفولة | Wall/ceiling cable opening not sealed (الشنيشه) | major | snag_docs | power_path, earth_path, armoured_cables, uplink, duct, management |
 | 30 | `RACK_BASE_BOLTS_MISSING` | مسامير رجل القاعدة ناقصة (8 مسامير) | Rack base leg bolts missing (8 per leg) | major | snag_docs | rack_base |
-| 31 | `RACK_BASE_NOT_LEVEL` | قاعدة الراك مش مظبوطة على الميزان أو مستوى البلاط | Rack base not level / not at tile level | major | sid_checklist | rack_base |
+| 31 | `RACK_BASE_NOT_LEVEL` | قاعدة الراك مش مظبوطة على الميزان أو مستوى البلاط | Rack base not level / not at tile level | minor | sid_checklist | rack_base |
 | 32 | `RACK_MISALIGNED` | الراك مش على استقامة الصف أو حرف البلاط | Rack not aligned with row / floor tile edge | minor | sid_checklist | rack |
 | 33 | `HOSTNAME_LABEL_MISSING` | الهوست نيم مش موجود | Hostname label missing on router/rack | major | snag_docs | router, rack, odf_cross_connect, odf_tie, pdu, test_room |
 | 34 | `LABEL_MISSING` | الليبول مش موجود | Cable / port label missing | major | snag_docs | odf_cross_connect_labels, odf_tie_labels, uplink_labels, power_labels, router, rack, odf_cross_connect, odf_tie, pdu, test_room, uplink, earth_path, management |
 | 35 | `LABEL_DAMAGED` | الليبول مقطوع | Label torn / damaged | minor | snag_docs | odf_cross_connect_labels, odf_tie_labels, uplink_labels, power_labels, router, rack, odf_cross_connect, odf_tie, pdu, test_room, uplink, earth_path, management |
 | 36 | `LABEL_MISPLACED` | الليبول مش في مكانه | Label in wrong position | minor | snag_docs | odf_cross_connect_labels, odf_tie_labels, uplink_labels, power_labels, router, rack, odf_cross_connect, odf_tie, pdu, test_room, uplink, earth_path, management |
-| 37 | `LABEL_INFO_INCOMPLETE` | بيانات الليبول ناقصة أو مش بالفورمات | Label content incomplete / not in agreed format | major | sid_checklist | odf_cross_connect_labels, odf_tie_labels, uplink_labels, power_labels, router, rack, odf_cross_connect, odf_tie, pdu, test_room, uplink, earth_path, management |
+| 37 | `LABEL_INFO_INCOMPLETE` | بيانات الليبول ناقصة أو مش بالفورمات | Label content incomplete / not in agreed format | minor | sid_checklist | odf_cross_connect_labels, odf_tie_labels, uplink_labels, power_labels, router, rack, odf_cross_connect, odf_tie, pdu, test_room, uplink, earth_path, management |
 | 38 | `POWER_PLUG_EXPOSED` | الفيشة باينة | Loose power plug / cord visible (الفيشه) | minor | snag_docs | rack, pdu, power_system, router |
 | 39 | `PDU_SCREW_MISSING` | مسمار الـ PDU ناقص | PDU fixing screw missing | major | snag_docs | pdu, rack, power_system |
 | 40 | `POWER_CABLE_DAMAGED` | خدوش في كابل الباور | Power/earth cable insulation scratched or damaged | critical | snag_docs | pdu, power_path, earth_path, power_labels, power_system |
 | 41 | `BUSBAR_WRONG_DRILLING` | تخريم في مكان غلط في البارة | Wrong / extra drilling on busbar | major | snag_docs | power_path, earth_path, power_system, pdu |
-| 42 | `POWER_CABLE_ROUTING_UNTIDY` | سستمة كابلات الباور مش مظبوطة | Power/earth cable dressing untidy or mixed with data | major | sid_checklist | pdu, power_path, earth_path, power_labels, power_system |
+| 42 | `POWER_CABLE_ROUTING_UNTIDY` | سستمة كابلات الباور مش مظبوطة | Power/earth cable dressing untidy or mixed with data | minor | sid_checklist | pdu, power_path, earth_path, power_labels, power_system |
 | 43 | `MANAGEMENT_CABLE_UNTIDY` | المانجمنت مش مظبوط | Management (UTP) cable routing untidy | major | snag_docs | management, router, rack, patch_cords |
 | 44 | `ARMOURED_CABLE_ROUTING_UNTIDY` | سستمة الارمود مش مظبوطة | Armoured fibre cable routing untidy | major | snag_docs | armoured_cables, odf_tie, test_room, duct |
-| 45 | `ODF_SHEET_MISSING_OR_UNREADABLE` | شيت الاو دي اف مش موجود أو مش مقروء | ODF port utilization sheet missing / unreadable | major | sid_checklist | odf_sheet, rack |
+| 45 | `ODF_SHEET_MISSING_OR_UNREADABLE` | شيت الاو دي اف مش موجود أو مش مقروء | ODF port utilization sheet missing / unreadable | minor | sid_checklist | odf_sheet, rack |
 | 46 | `OTHER_SNAG` | ملاحظة تانية مش في القائمة | Other issue (not in taxonomy) | minor | catch_all | _all_ |
 
 ## Details
@@ -63,8 +77,8 @@ Total: 46 codes.
 ### `PERSON_IN_FRAME` — Person visible in photo
 
 - **الوصف:** ظهور شخص (جسم أو وش أو رجلين أو هدوم) في صورة التسليم النهائية. إيد ماسكة الليبول عشان يتقري في صور الليبولات مش سناج.
-- **Description:** A person (body, face, legs, clothing) appears in a final acceptance photo. A hand or fingers holding a label flat for a label close-up is NOT this snag.
-- **Look for:** human body, head, face, legs or clothing anywhere in the frame, including reflections in rack doors or ODF windows; a person working in the background of a rack or room overview shot
+- **Description:** A person (body, face, legs, clothing) appears in a final acceptance photo. A hand or fingers holding a label or cord flat for a close-up is NOT this snag, nor is a faint reflection of the photographer in a glossy surface.
+- **Look for:** human body, head, face, legs or clothing anywhere in the frame, including a clearly recognisable person reflected in rack doors or ODF windows; a person working in the background of a rack or room overview shot
 - **Reviewer wording:** «نصور بدون ظهور الشخص»، «عدم ظهور شخص في الصور النهائيه»، «عدم ظهور شخص في الصوره»
 - **الإصلاح:** نعيد التصوير من غير ما حد يظهر في الكادر، ونبعد أي حد واقف ورا الراك.
 - **Fix:** Retake the photo with nobody in the frame; ask anyone behind the rack to step away.
@@ -90,7 +104,7 @@ Total: 46 codes.
 ### `WRONG_CATEGORY` — Photo does not match its category
 
 - **الوصف:** الصورة متصورة لحاجة غير البند اللي اترفعت عليه (مثلاً صورة PDU مترفوعة على قاعدة الراك).
-- **Description:** The photo shows a different subject than the category it was uploaded under (e.g. a PDU photo uploaded as rack_base).
+- **Description:** The photo shows a different subject than the category it was uploaded under (e.g. a PDU photo uploaded as rack_base). A close-up of labels, cords or items of a related category (e.g. ODF labels under odf_cross_connect) is not this snag.
 - **Look for:** main subject belongs to another category; no element required by this category is visible
 - **Not to confuse with:** `SUBJECT_NOT_FULLY_VISIBLE`
 - **الإصلاح:** نرفع الصورة على البند الصح أو نصور البند المطلوب.
@@ -128,8 +142,8 @@ Total: 46 codes.
 ### `PACKAGING_OR_DEBRIS_LEFT` — Cardboard, packaging or debris left
 
 - **الوصف:** كراتين أو نايلون أو بواقي رباطات أو عدة أو مخلفات تركيب متسابة في الراك أو تحت البلاط أو في الموقع.
-- **Description:** Cardboard boxes, plastic wrap, cable-tie off-cuts, tools or installation waste left in the rack, under the floor or around the site.
-- **Look for:** brown cardboard box inside a rack; plastic bags / wrapping; cut cable-tie tails or offcuts on the floor; tools left behind
+- **Description:** Clear installer leftovers - cardboard boxes, plastic bags or wrapping, spare material, tools - left in or at the installation (rack, ODF, tray, rack base). Pre-existing building dirt and a few cable-tie off-cuts are not this code (see DUST_OR_DIRT).
+- **Look for:** brown cardboard box inside a rack; plastic bags / wrapping inside the rack or on the tray; boxes or spare material stacked at the rack base; tools left behind
 - **Not to confuse with:** `SPARE_LEFT_IN_RACK`, `DUST_OR_DIRT`
 - **Reviewer wording:** «نشيل الكرتونه من جواه الراك»
 - **الإصلاح:** نشيل الكرتون وأي مخلفات من الراك والموقع وننضف المكان.
@@ -138,7 +152,7 @@ Total: 46 codes.
 ### `DUST_OR_DIRT` — Dust or dirt on rack / ODF / equipment
 
 - **الوصف:** تراب أو بودرة أسمنت أو وساخة باينة على أرضية الراك أو فوق الأجهزة أو على الاو دي اف أو التراي بعد التركيب.
-- **Description:** Visible dust, cement powder or dirt on the rack floor, equipment tops, ODF or trays after installation.
+- **Description:** Visible dust, cement powder or dirt on the installed equipment: rack floor, equipment tops, ODF or new trays, or a few cable-tie off-cuts left behind. Pre-existing building dirt (old floors, the void under the raised floor) is not a snag.
 - **Look for:** grey dust layer on black rack surfaces; footprints or powder on rack floor; dust on ODF window or router top
 - **Not to confuse with:** `MARKER_OR_STAIN_MARKS`, `PACKAGING_OR_DEBRIS_LEFT`
 - **Reviewer wording:** «نسمح التراب من جواه الراك»، «نمسح او دي اف»، «مسح ااراك و او دي اف»، «نمسح الراك من التراب»، «نمسح التراب»، «نسمح التراب»، «نمسح الراك»
@@ -158,7 +172,7 @@ Total: 46 codes.
 ### `RACK_DOOR_NOT_CLOSED` — Rack door left open / not latched
 
 - **الوصف:** باب من أبواب الراك (قدام أو ورا أو جنب) غير الباب اللي اتفتح عشان التصوير متساب مفتوح أو مش مقفول صح.
-- **Description:** A rack door (front, rear or side) that is not the one opened for the shot is left open or not latched properly. Doors deliberately opened to photograph the inside are acceptable.
+- **Description:** A rack door is visibly ajar / not latched, or a door is open in a shot meant to show the closed rack (closed-rack overview, final front/back shot). Doors opened to photograph the inside are normal and are not this snag.
 - **Look for:** rear door visibly open behind the open front; door ajar / misaligned, latch not engaged; closed-rack overview with a door standing open
 - **Reviewer wording:** «نقف الباب الخلفي»، «نقفل الباب»، «الباب مش مقفول بشكل صحيح»، «الباب مفتوح»
 - **الإصلاح:** نقفل كل أبواب الراك صح ونتأكد إن الكالون قافل.
@@ -385,7 +399,7 @@ Total: 46 codes.
 
 - **الوصف:** باتش أو كابل باور/أرضي أو أب لينك أو بريكر في الـ PDU أو جهاز من غير ليبول. ليبول اسم الجهاز ليه كود HOSTNAME_LABEL_MISSING.
 - **Description:** A patch cord, power/earth cable, uplink, PDU breaker or device has no label where one is required. Use HOSTNAME_LABEL_MISSING for the device name label.
-- **Look for:** cord ends without a flag label; power cable without label near termination; blank label slots on PDU breakers
+- **Look for:** cord ends without a flag label; power cable without label near termination; a used PDU breaker or its feed cable without a label (blank slots on unused breakers are fine)
 - **Not to confuse with:** `HOSTNAME_LABEL_MISSING`, `LABEL_INFO_INCOMPLETE`
 - **Reviewer wording:** «نحط الليبول»، «عدم وجود ليبول»
 - **الإصلاح:** نحط ليبول على كل كابل أو باتش ناقص بالفورمات المتفق عليه (From / To).

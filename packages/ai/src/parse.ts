@@ -1,4 +1,5 @@
 import { AnalysisResult } from '@acceptance/shared';
+import { ModelOutput } from './policy.js';
 
 export type ParseOutcome = { ok: true; result: AnalysisResult } | { ok: false; error: string };
 
@@ -72,6 +73,42 @@ export function parseAnalysis(text: string): ParseOutcome {
     return { ok: false, error: `Output does not match the schema: ${issues.join('; ')}.` };
   }
   return { ok: true, result: normalizeResult(parsed.data) };
+}
+
+/**
+ * Fills per-snag fields a vendor without strict structured output may omit (confidence, evidence, bbox).
+ * Claude/OpenAI/Gemini enforce them via the JSON schema; this keeps older recordings and loose vendors
+ * parseable. A filled confidence is 0.6 ("possible"), so it can never reject on its own.
+ */
+function fillSnagDefaults(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || !Array.isArray((value as { snags?: unknown }).snags)) return value;
+  const v = value as { snags: unknown[] };
+  return {
+    ...v,
+    snags: v.snags.map((s) => {
+      if (typeof s !== 'object' || s === null) return s;
+      const o = s as Record<string, unknown>;
+      return { confidence: 0.6, evidence: typeof o.reasonEn === 'string' ? o.reasonEn : '', bbox: { x: 0, y: 0, w: 1, h: 1 }, ...o };
+    }),
+  };
+}
+
+export type ModelParseOutcome = { ok: true; output: ModelOutput } | { ok: false; error: string };
+
+/** Parse + zod-validate the model's raw output (T3.5 schema with per-snag evidence and confidence). */
+export function parseModelOutput(text: string): ModelParseOutcome {
+  let json: unknown;
+  try {
+    json = extractJson(text);
+  } catch (e) {
+    return { ok: false, error: `Output is not valid JSON (${(e as Error).message}).` };
+  }
+  const parsed = ModelOutput.safeParse(fillSnagDefaults(stripNulls(json)));
+  if (!parsed.success) {
+    const issues = parsed.error.issues.slice(0, 10).map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`);
+    return { ok: false, error: `Output does not match the schema: ${issues.join('; ')}.` };
+  }
+  return { ok: true, output: parsed.data };
 }
 
 export function repairInstruction(error: string): string {

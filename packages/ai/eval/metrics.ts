@@ -1,5 +1,7 @@
 /** Eval metrics (T3.4): pure functions over EvalRecords so they are unit-testable with fixtures. */
 import { z } from 'zod';
+import type { PhotoCategory } from '@acceptance/shared';
+import { decideVerdict, ModelOutput, type VerdictPolicy } from '../src/policy.js';
 
 export const EvalRecord = z.object({
   id: z.string(),
@@ -9,6 +11,7 @@ export const EvalRecord = z.object({
   expectedVerdict: z.enum(['accept', 'reject']),
   expectedCodes: z.array(z.string()),
   source: z.string().optional(),
+  codesUnreliable: z.boolean().optional(),
   predicted: z
     .object({
       verdict: z.enum(['accept', 'reject', 'uncertain']),
@@ -17,8 +20,12 @@ export const EvalRecord = z.object({
       categoryMatches: z.boolean(),
       detectedCategory: z.string().optional(),
       qualityIssues: z.array(z.string()),
+      snags: z.array(z.object({ code: z.string(), severity: z.string(), confidence: z.number().optional() })).optional(),
+      decisionReason: z.string().optional(),
     })
     .optional(),
+  /** Raw model output before the verdict policy (T3.5+); enables offline replay under another policy. */
+  raw: ModelOutput.optional(),
   error: z.string().optional(),
   provider: z.string(),
   model: z.string(),
@@ -63,6 +70,16 @@ export interface EvalMetrics {
   falseAcceptRate: number | null;
   /** Assumed-good photos predicted "reject". */
   falseRejectRate: number | null;
+  /** Snag photos predicted "accept" with NO snag reported at all (a clean accept: nothing for the reviewer to see). */
+  silentFalseAcceptRate: number | null;
+  /** Snag photos accepted WITH minor notes (counted in falseAcceptRate). */
+  snagAcceptWithNotes: number;
+  /** Good photos accepted with minor notes (counted as accept). */
+  goodAcceptWithNotes: number;
+  /** Good photos predicted uncertain. */
+  goodUncertainRate: number | null;
+  /** Snag photos predicted uncertain. */
+  snagUncertainRate: number | null;
   /** Snag photos where at least one expected code was predicted (photos with expected codes only). */
   snagCodeHitRate: number | null;
   perCode: CodeStats[];
@@ -116,9 +133,18 @@ export function computeMetrics(records: readonly EvalRecord[]): EvalMetrics {
   };
   let snagWithCodes = 0;
   let snagHit = 0;
+  let silentFa = 0;
+  let snagNotes = 0;
+  let goodNotes = 0;
 
   for (const r of records) {
     confusion[r.expectedVerdict][outcome(r)]++;
+    if (r.predicted?.verdict === 'accept') {
+      const n = r.predicted.codes.length;
+      if (r.expectedVerdict === 'reject') n === 0 ? silentFa++ : snagNotes++;
+      else if (n > 0) goodNotes++;
+    }
+    if (r.codesUnreliable) continue; // verdict counted above; codes are not scored
     if (!r.predicted) {
       for (const c of r.expectedCodes) {
         stat(c).fn++;
@@ -177,6 +203,11 @@ export function computeMetrics(records: readonly EvalRecord[]): EvalMetrics {
     snagCatchRate: ratio(cr.reject + cr.uncertain, expReject),
     falseAcceptRate: ratio(cr.accept, expReject),
     falseRejectRate: ratio(ca.reject, expAccept),
+    silentFalseAcceptRate: ratio(silentFa, expReject),
+    snagAcceptWithNotes: snagNotes,
+    goodAcceptWithNotes: goodNotes,
+    goodUncertainRate: ratio(ca.uncertain, expAccept),
+    snagUncertainRate: ratio(cr.uncertain, expReject),
     snagCodeHitRate: ratio(snagHit, snagWithCodes),
     perCode,
     micro: { precision: microP, recall: microR, f1: f1(microP, microR) },
@@ -192,4 +223,29 @@ export function computeMetrics(records: readonly EvalRecord[]): EvalMetrics {
     },
     escalationRate: withEscalation.length ? ratio(withEscalation.filter((r) => r.escalated).length, withEscalation.length) : null,
   };
+}
+
+/**
+ * Re-applies a verdict policy to recorded raw model outputs (no API calls). Records without `raw`
+ * (pre-T3.5 runs) are returned unchanged.
+ */
+export function replayRecords(records: readonly EvalRecord[], policy: VerdictPolicy): EvalRecord[] {
+  return records.map((r) => {
+    if (!r.raw || !r.predicted) return r;
+    const d = decideVerdict(r.raw, r.category as PhotoCategory, policy);
+    return {
+      ...r,
+      predicted: {
+        ...r.predicted,
+        verdict: d.result.verdict,
+        confidence: d.result.confidence,
+        codes: d.result.snags.map((s) => s.code),
+        categoryMatches: d.result.categoryMatches,
+        ...(d.result.detectedCategory ? { detectedCategory: d.result.detectedCategory } : {}),
+        qualityIssues: d.result.qualityIssues,
+        snags: d.result.snags.map((s) => ({ code: s.code, severity: s.severity, confidence: r.raw?.snags.find((x) => x.code === s.code)?.confidence })),
+        decisionReason: d.reason,
+      },
+    };
+  });
 }

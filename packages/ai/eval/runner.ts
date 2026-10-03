@@ -25,7 +25,13 @@ export async function mapPool<T, R>(items: readonly T[], concurrency: number, fn
   return out;
 }
 
-type MetaLike = AnalysisMeta & { escalated?: boolean; quality?: { issues: string[] } };
+type MetaLike = AnalysisMeta & {
+  escalated?: boolean;
+  quality?: { issues: string[] };
+  raw?: EvalRecord['raw'];
+  decision?: { reason: string };
+  stages?: unknown;
+};
 
 export function toRecord(item: EvalItem, out: { result: AnalysisResult; meta: MetaLike } | undefined, error: unknown, fallback: { provider: string; latencyMs: number }): EvalRecord {
   const base = {
@@ -36,6 +42,7 @@ export function toRecord(item: EvalItem, out: { result: AnalysisResult; meta: Me
     expectedVerdict: item.expectedVerdict,
     expectedCodes: item.expectedCodes,
     source: item.source,
+    ...(item.codesUnreliable ? { codesUnreliable: true } : {}),
   };
   if (!out) {
     return { ...base, error: error instanceof Error ? error.message : String(error), provider: fallback.provider, model: '?', latencyMs: fallback.latencyMs };
@@ -50,7 +57,10 @@ export function toRecord(item: EvalItem, out: { result: AnalysisResult; meta: Me
       categoryMatches: result.categoryMatches,
       ...(result.detectedCategory ? { detectedCategory: result.detectedCategory } : {}),
       qualityIssues: result.qualityIssues,
+      snags: result.snags.map((s) => ({ code: s.code, severity: s.severity, confidence: meta.raw?.snags.find((x) => x.code === s.code)?.confidence })),
+      ...(meta.decision ? { decisionReason: meta.decision.reason } : {}),
     },
+    ...(meta.raw ? { raw: meta.raw } : {}),
     provider: meta.provider,
     model: meta.model,
     promptVersion: meta.promptVersion,

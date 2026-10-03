@@ -27,6 +27,12 @@ export const REJECT: AnalysisResult = {
   snags: [{ code: 'DUCT_COVER_OPEN', severity: 'minor', bbox: { x: 0.1, y: 0.2, w: 0.3, h: 0.2 }, reasonAr: 'نقفل الداكت', reasonEn: 'Close the duct cover.' }],
 };
 
+/** REJECT as the vision model returns it (T3.5 model output: per-snag confidence + evidence). */
+export const REJECT_RAW = {
+  ...REJECT,
+  snags: REJECT.snags.map((s) => ({ ...s, severity: 'major' as const, confidence: 0.85, evidence: 'duct cover lifted at the rack drop, top-left' })),
+};
+
 export interface Recorded {
   url: string;
   method: string;

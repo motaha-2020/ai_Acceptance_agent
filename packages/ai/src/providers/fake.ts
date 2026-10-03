@@ -41,7 +41,7 @@ export class FakeVendor implements VendorClient {
     const codes = snagsForCategory(category).map((s) => s.code).filter((c) => !c.startsWith('PHOTO_') && c !== 'WRONG_CATEGORY' && c !== 'PERSON_IN_FRAME');
     const bucket = h % 100;
     const code = codes[h % Math.max(1, codes.length)] ?? 'OTHER_SNAG';
-    const snag = { code, severity: 'minor', reasonAr: 'ملاحظة تجريبية', reasonEn: 'dry-run finding' };
+    const snag = { code, severity: 'major', confidence: 0.8, evidence: 'dry-run evidence', bbox: { x: 0.1, y: 0.1, w: 0.3, h: 0.3 }, reasonAr: 'ملاحظة تجريبية', reasonEn: 'dry-run finding' };
     const answer =
       bucket < 60
         ? { categoryMatches: true, qualityIssues: [], verdict: 'accept', confidence: 0.85, snags: [] }

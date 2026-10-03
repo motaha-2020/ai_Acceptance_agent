@@ -52,7 +52,7 @@ describe('eval CLI dry-run e2e', () => {
     const { markdown, file } = compareCommand(['--last', '2', '--data-dir', fx.dataDir], io);
     expect(markdown).toContain('# Provider bake-off comparison');
     expect(markdown).toMatch(/dryrun-gemini \(dry\)/);
-    expect(markdown).toMatch(/dryrun-cascade-gemini-claude \(dry\)/);
+    expect(markdown).toMatch(/dryrun-cascade-gemini-claude-fs1 \(dry\)/);
     expect(readFileSync(file, 'utf8')).toBe(markdown);
   });
 
