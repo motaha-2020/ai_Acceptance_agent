@@ -38,8 +38,9 @@ cd android
 apk=app/build/outputs/apk/release/app-release.apk
 apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
 certs="$("$apksigner" verify --print-certs "$apk")"
-printf '%s\n' "$certs" | grep -E "Signer #1 certificate (DN|SHA-256)"
-actual_sha="$(printf '%s\n' "$certs" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | tr 'A-F' 'a-f')"
+# apksigner prints "Signer #1 certificate ..." (older build-tools) or "V2 Signer: certificate ..." (37+).
+printf '%s\n' "$certs" | grep -E "certificate (DN|SHA-256 digest):" || true
+actual_sha="$(printf '%s\n' "$certs" | sed -n -E '/certificate SHA-256 digest: /{s/.*certificate SHA-256 digest: //;p;q;}' | tr 'A-F' 'a-f')"
 if [ "$actual_sha" != "$expected_sha" ]; then
   echo "APK is not signed with the release key (expected $expected_sha, got ${actual_sha:-none}); refusing to publish" >&2
   exit 1
