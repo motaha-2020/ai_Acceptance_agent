@@ -5,7 +5,12 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.test.json",
@@ -17,16 +22,19 @@
     "@acceptance/ai": "workspace:*",
     "@acceptance/checklist": "workspace:*",
     "@acceptance/db": "workspace:*",
+    "@acceptance/parsers": "workspace:*",
     "@acceptance/queue": "workspace:*",
+    "@acceptance/report": "workspace:*",
     "@acceptance/shared": "workspace:*",
     "@acceptance/storage": "workspace:*",
     "pino": "^9.5.0",
+    "sharp": "^0.34.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "sharp": "^0.34.0",
     "typescript": "^5.6.0",
-    "vitest": "^2.1.0"
+    "vitest": "^2.1.0",
+    "jszip": "^3.10.1"
   }
 }

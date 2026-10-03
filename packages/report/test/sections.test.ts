@@ -106,3 +106,13 @@ describe('fitBox', () => {
     expect(fitBox(100, 50)).toEqual({ width: 100, height: 50 });
   });
 });
+
+describe('LLD scope', () => {
+  it('keeps only rows of the site device when the LLD covers several routers', async () => {
+    const d = fixture();
+    const lld = { ...d.lld!, install: [...d.lld!.install, { hostname: 'OTHER', routerFunction: 'PE Router', node: null, type: null, project: null }], internalLinks: [...d.lld!.internalLinks, { parentRouter: 'OTHER', parentInterface: 'Te0/0/0/1', childRouter: 'PEER-1', childInterface: 'Te0/2/0/9', cost: 10 }] };
+    const u = await unpack(await buildAcceptanceReport({ ...d, lld }));
+    expect(u.content.tables.find((t) => t.rows[0]?.[0] === 'Parent Router')!.rows).toHaveLength(2);
+    expect(u.content.tables.find((t) => t.rows[0]?.[0] === 'Hostname' && t.rows[0]?.[1] === 'Router Function')!.rows).toHaveLength(2);
+  });
+});

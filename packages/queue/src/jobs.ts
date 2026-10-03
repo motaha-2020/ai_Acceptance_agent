@@ -1,6 +1,7 @@
 /** Job names and payloads shared by producers (API) and consumers (worker). */
 export const JobName = {
   analyzePhoto: 'analyze-photo',
+  generateReport: 'generate-report',
 } as const;
 
 export interface AnalyzePhotoJob {
@@ -12,4 +13,13 @@ export interface AnalyzePhotoJob {
 /** Deterministic job id so duplicate enqueues of the same photo collapse into one job. BullMQ rejects custom ids containing ":" (its Redis key separator), hence "-". */
 export function analyzePhotoJobId(photoId: string, reason: AnalyzePhotoJob['reason'], nonce?: string): string {
   return reason === 'upload' ? `analyze-${photoId}` : `analyze-${photoId}-${nonce ?? Date.now()}`;
+}
+
+export interface GenerateReportJob {
+  /** Report row (status queued) created by the API. */
+  reportId: string;
+}
+
+export function generateReportJobId(reportId: string): string {
+  return `report-${reportId}`;
 }

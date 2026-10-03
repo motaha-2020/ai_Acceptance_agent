@@ -1,5 +1,6 @@
 import type { ReportData } from '../data.js';
 import { dataTable, labelValueTable, note, para, sectionHeading, subHeading, type Block } from '../docx/primitives.js';
+import { lldForSite } from './network.js';
 import { headingOf } from './titles.js';
 
 const v = (s: string | null | undefined): string => (s && s.trim() ? s.trim() : '—');
@@ -52,7 +53,7 @@ export function buildLayouts(data: ReportData): Block[] {
     note('See the Test room photos in the Photo Gallery.'),
     subHeading('Rack Utilization:'),
   ];
-  const install = data.lld?.install ?? [];
+  const install = lldForSite(data)?.install ?? [];
   const rows = install.length
     ? install.map((r) => [r.hostname, r.routerFunction, r.node ?? '', r.type ?? data.siteData.deviceModel ?? ''])
     : data.siteData.hostname

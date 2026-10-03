@@ -3,12 +3,25 @@ import type { ReportData } from '../data.js';
 import { dataTable, note, para, sectionHeading, subHeading, type Block } from '../docx/primitives.js';
 import { headingOf } from './titles.js';
 
+/**
+ * An LLD often covers several routers of the exchange; the SID shows only this site's device.
+ * Rows are kept when the site hostname is unknown or no row mentions it.
+ */
+export function lldForSite(data: ReportData): NonNullable<ReportData['lld']> | null {
+  const lld = data.lld;
+  const host = data.siteData.hostname;
+  if (!lld || !host) return lld;
+  const links = lld.internalLinks.filter((l) => l.parentRouter === host || l.childRouter === host);
+  const install = lld.install.filter((r) => r.hostname === host);
+  return { ...lld, internalLinks: links.length ? links : lld.internalLinks, install: install.length ? install : lld.install };
+}
+
 export const fiberRefText = (r: FiberRef | null): string => (r ? `ODF ${r.odf} - ${r.panel}(${r.fibers.join(',')})` : '');
 
 /** LLD: header info, Install table and new Internal Links (same columns as the SID). */
 export function buildLld(data: ReportData): Block[] {
   const blocks: Block[] = [sectionHeading(`${headingOf('lld')}.`, { pageBreakBefore: true }), subHeading('Low Level Design (LLD):')];
-  const lld = data.lld;
+  const lld = lldForSite(data);
   if (!lld) return [...blocks, note('No LLD document imported for this site.')];
   const header = [lld.title, lld.site ? `Site: ${lld.site}` : null, lld.author ? `Author: ${lld.author}` : null, lld.date ? `Date: ${lld.date}` : null].filter(Boolean).join('   ·   ');
   if (header) blocks.push(para(header, { size: 20 }));
