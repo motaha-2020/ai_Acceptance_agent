@@ -40,9 +40,11 @@ COPY --from=build /repo/packages/db/dist        packages/db/dist
 COPY --from=build /repo/packages/storage/dist   packages/storage/dist
 COPY --from=build /repo/packages/queue/dist     packages/queue/dist
 COPY --from=build /repo/packages/ai/dist        packages/ai/dist
+COPY --from=build /repo/packages/parsers/dist   packages/parsers/dist
+COPY --from=build /repo/packages/report/dist    packages/report/dist
 COPY --from=build /repo/apps/worker/dist        apps/worker/dist
 # Drop sources, tests and workspaces this image does not run (embedded-postgres stays: @acceptance/db imports it eagerly).
-RUN rm -rf tools apps/api apps/web apps/mobile packages/report infra docs \
+RUN rm -rf tools apps/api apps/web apps/mobile infra docs \
  && find apps packages -mindepth 2 -maxdepth 2 \( -name src -o -name test -o -name eval -o -name scripts -o -name '*.tsbuildinfo' \) -exec rm -rf {} + \
  && find . -name '*.map' -path '*/dist/*' -delete
 

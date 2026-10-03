@@ -40,3 +40,18 @@ jobs:
         run: docker buildx build -f apps/api/Dockerfile -t acceptance/api:ci --load .
       - name: Build worker image
         run: docker buildx build -f apps/worker/Dockerfile -t acceptance/worker:ci --load .
+      # A build that compiles can still crash at start when a workspace package is missing from the
+      # image (the first P6 deploy rolled back on "Cannot find package '@acceptance/report'").
+      # Load each app's code and every runtime dependency inside the image, without starting it.
+      - name: Smoke-check api image imports
+        run: >-
+          docker run --rm --entrypoint node -w /app/apps/api acceptance/api:ci --input-type=module -e
+          "const p = JSON.parse((await import('node:fs')).readFileSync('package.json', 'utf8'));
+          for (const d of Object.keys(p.dependencies ?? {})) await import(d);
+          await import('/app/apps/api/dist/app.js'); console.log('api imports ok')"
+      - name: Smoke-check worker image imports
+        run: >-
+          docker run --rm --entrypoint node -w /app/apps/worker acceptance/worker:ci --input-type=module -e
+          "const p = JSON.parse((await import('node:fs')).readFileSync('package.json', 'utf8'));
+          for (const d of Object.keys(p.dependencies ?? {})) await import(d);
+          await import('/app/apps/worker/dist/index.js'); await import('/app/apps/worker/dist/ai-providers.js'); console.log('worker imports ok')"
