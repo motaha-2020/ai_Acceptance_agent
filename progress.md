@@ -39,31 +39,31 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 | T3.2 | Category verification + quality gates | AI Engineer (opus) | done | local blur (Laplacian var) + dark (mean luma) gate, modes hint/short_circuit/off, thresholds calibrated on 899 real photos (flags none of the accepted set); PERSON_IN_FRAME/WRONG_CATEGORY photo-gate block in cached prefix; short_circuit off until validated on reviewer rejections |
 | T3.3 | Per-category prompts + few-shot | AI Engineer | todo | |
 | T3.4 | Eval harness + metrics | AI Engineer (opus) | done | packages/ai/eval: dataset (snag seed via matchReviewerRemark + inferred category; assumed-good stratified, sha256-dedup, few-shot/eval splits disjoint by sha256), per-code P/R, accuracy, confusion, catch/false-accept/uncertain rates, latency, cost; jsonl+md outputs; compare command; --dry-run fake provider |
-| T3.5 | Prompt tuning loop | AI Engineer | todo | |
-| T3.6 | Provider bake-off (cost/accuracy) | AI Engineer (opus) | blocked | 2026-10-03 smoke 5 photos: OpenAI + Claude Sonnet OK end-to-end, both over-strict (0 expected codes, rejected good photos; Claude better calibrated + 3x faster). Waiting for user to enable Gemini billing, then full 150-photo run (user wants Gemini included). Commands: put keys in .env, then `pnpm --filter @acceptance/ai eval --provider gemini --model gemini-3.8-flash --limit 150 --concurrency 4` (repeat for gemini-3.1-flash-lite, claude-haiku-4-5, claude-sonnet-5-5, claude-opus-5-5 --concurrency 2, openai gpt-6.1-sol), `pnpm --filter @acceptance/ai eval --provider cascade --cascade gemini:gemini-3.8-flash,claude:claude-sonnet-5-5 --min-confidence 0.7 --limit 150 --concurrency 4`, then `pnpm --filter @acceptance/ai eval:compare --last 7` (see packages/ai/README.md) |
+| T3.5 | Prompt tuning loop | AI Engineer (opus) | doing | |
+| T3.6 | Provider bake-off (cost/accuracy) | AI Engineer (opus) | done | 2026-10-03 bake-off 150 photos (data/eval/compare-*.md): Sonnet 5.5 = 0% false accept, best calibrated (says uncertain), fastest 4s, $11.3/1000; Gemini Flash 1.3% false accept, best code precision; Haiku 5.3% false accept (not standalone); OpenAI 93% false reject, slowest. Few-shot K=2 cut false reject 80%->51% (Sonnet), 73%->49% (Gemini). Production default: Sonnet 5.5. Next T3.5: relax cosmetic codes, clean mislabeled categories, resolve taxonomy questions. |
 
 ## P4 Web
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T4.1 | Design system + i18n/RTL | Frontend Developer | todo | |
-| T4.2 | Auth + admin (users/roles) | Frontend Developer | todo | |
-| T4.3 | Review queue UI | Frontend Developer | todo | |
-| T4.4 | Sites/projects/snag tracker | Frontend Developer | todo | |
-| T4.5 | AI accuracy dashboard | Frontend Developer | todo | |
-| T4.6 | Report UI | Frontend Developer | todo | |
+| T4.1 | Design system + i18n/RTL | Frontend Developer (sonnet) | doing | 2026-10-03 |
+| T4.2 | Auth + admin (users/roles) | Frontend Developer (sonnet) | doing | 2026-10-03 |
+| T4.3 | Review queue UI | Frontend Developer (sonnet) | doing | 2026-10-03 |
+| T4.4 | Sites/projects/snag tracker | Frontend Developer (sonnet) | doing | 2026-10-03 |
+| T4.5 | AI accuracy dashboard | Frontend Developer (sonnet) | doing | 2026-10-03 |
+| T4.6 | Report UI | Frontend Developer (sonnet) | doing | 2026-10-03 |
 
 ## P5 Mobile
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T5.1 | Expo scaffold + auth | Mobile App Builder | todo | |
-| T5.2 | Visits + guided shot list | Mobile App Builder | todo | |
-| T5.3 | Camera + offline queue + background upload | Mobile App Builder | todo | |
-| T5.4 | AI feedback / retake / fix flow | Mobile App Builder | todo | |
-| T5.5 | EAS builds | Mobile App Builder | todo | |
-| T5.6 | Download page on web: latest signed APK + QR code + version/changelog (Android only; iOS deferred - all technicians on Android) | Mobile App Builder | todo | model: Sonnet |
-| T5.7 | OTA updates: expo-updates + self-hosted update server on Hetzner (expo-updates protocol, code signing), channels production/staging, rollback | Mobile App Builder | todo | model: Opus |
-| T5.8 | Forced update gate: app checks API `min_supported_version`; OTA for JS changes, prompt to download new APK from web for native changes | Mobile App Builder | todo | model: Sonnet |
-| T5.9 | Release pipeline: CI publishes OTA bundle + APK to MinIO, admin page to publish/rollback a release to all devices | DevOps Automator | todo | model: Sonnet |
+| T5.1 | Expo scaffold + auth | Mobile App Builder (opus) | doing | 2026-10-03  |
+| T5.2 | Visits + guided shot list | Mobile App Builder (opus) | doing | 2026-10-03  |
+| T5.3 | Camera + offline queue + background upload | Mobile App Builder (opus) | doing | 2026-10-03  |
+| T5.4 | AI feedback / retake / fix flow | Mobile App Builder (opus) | doing | 2026-10-03  |
+| T5.5 | EAS builds | Mobile App Builder (opus) | doing | 2026-10-03  |
+| T5.6 | Download page on web: latest signed APK + QR code + version/changelog (Android only; iOS deferred - all technicians on Android) | Mobile App Builder (opus) | doing | 2026-10-03 model: Sonnet |
+| T5.7 | OTA updates: expo-updates + self-hosted update server on Hetzner (expo-updates protocol, code signing), channels production/staging, rollback | Mobile App Builder (opus) | doing | 2026-10-03 model: Opus |
+| T5.8 | Forced update gate: app checks API `min_supported_version`; OTA for JS changes, prompt to download new APK from web for native changes | Mobile App Builder (opus) | doing | 2026-10-03 model: Sonnet |
+| T5.9 | Release pipeline: CI publishes OTA bundle + APK to MinIO, admin page to publish/rollback a release to all devices | Mobile App Builder (opus) | doing | 2026-10-03 model: Sonnet |
 
 ## P6 Reports
 | ID | Task | Owner | Status | Notes |
@@ -76,7 +76,7 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P7 Deploy & Hardening
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T7.1 | Hetzner provisioning (Caddy, ufw, backups) | DevOps Automator (opus) | review | 2026-10-03 live at http://178.104.221.75 (no domain yet). infra/docker-compose.prod.yml: caddy (only published ports 80/443), api, worker, postgres 16, redis 7 (AOF, noeviction), minio (pgsty/minio: upstream images discontinued) + minio-init (private bucket, least-privilege app key); data network internal, limits, log rotation, read-only app containers. apps/{api,worker}/Dockerfile multi-stage, non-root, tini, healthchecks (worker heartbeat). infra/scripts: deploy.sh (git-tracked sync over ssh, build on server, migrate, seed, up --wait, health check, auto-rollback), rollback.sh, backup.sh (daily systemd timer 02:30 UTC, pg_dump 7 days + MinIO mirror), logs.sh, init-secrets/set-env/push-ai-keys. Secrets only in /opt/acceptance/.env + ADMIN_PASSWORD (600). Worker registers claude/gemini/openai/cascade from @acceptance/ai (AI_PROVIDER, AI_MODEL); prod = claude-sonnet-5-5. Fixed BullMQ job id (":" rejected by BullMQ, uploads were never queued with Redis). Smoke: real photo -> Claude analysis -> pending_review in 6 s. Runbook infra/README.md. Open: off-site backups, image size ~1 GB (Prisma + eager embedded-postgres import), no periodic requeue of stuck uploads |
+| T7.1 | Hetzner provisioning (Caddy, ufw, backups) | DevOps Automator (opus) | done | 2026-10-03 live at http://178.104.221.75 (no domain yet). infra/docker-compose.prod.yml: caddy (only published ports 80/443), api, worker, postgres 16, redis 7 (AOF, noeviction), minio (pgsty/minio: upstream images discontinued) + minio-init (private bucket, least-privilege app key); data network internal, limits, log rotation, read-only app containers. apps/{api,worker}/Dockerfile multi-stage, non-root, tini, healthchecks (worker heartbeat). infra/scripts: deploy.sh (git-tracked sync over ssh, build on server, migrate, seed, up --wait, health check, auto-rollback), rollback.sh, backup.sh (daily systemd timer 02:30 UTC, pg_dump 7 days + MinIO mirror), logs.sh, init-secrets/set-env/push-ai-keys. Secrets only in /opt/acceptance/.env + ADMIN_PASSWORD (600). Worker registers claude/gemini/openai/cascade from @acceptance/ai (AI_PROVIDER, AI_MODEL); prod = claude-sonnet-5-5. Fixed BullMQ job id (":" rejected by BullMQ, uploads were never queued with Redis). Smoke: real photo -> Claude analysis -> pending_review in 6 s. Runbook infra/README.md. Open: off-site backups, image size ~1 GB (Prisma + eager embedded-postgres import), no periodic requeue of stuck uploads |
 | T7.2 | CI/CD | DevOps Automator | todo | 2026-10-03 minimum added with T7.1: .github/workflows/ci.yml (install, build, typecheck, test, docker build api+worker) - never run (nothing pushed). CD = manual infra/scripts/deploy.sh |
 | T7.3 | Monitoring | DevOps Automator | todo | |
 | T7.4 | E2E tests | API Tester | todo | |
