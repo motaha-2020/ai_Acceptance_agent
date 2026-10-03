@@ -69,3 +69,12 @@ describe('InMemoryJobQueue', () => {
     expect([1, 2, 3].map((a) => backoffDelay(1000, a))).toEqual([1000, 2000, 4000]);
   });
 });
+
+describe('analyzePhotoJobId', () => {
+  it('never contains ":" (BullMQ rejects custom job ids with its key separator)', async () => {
+    const { analyzePhotoJobId } = await import('../src/jobs.js');
+    expect(analyzePhotoJobId('cmabc123', 'upload')).toBe('analyze-cmabc123');
+    expect(analyzePhotoJobId('cmabc123', 'reanalyze', 'n1')).toBe('analyze-cmabc123-n1');
+    expect(analyzePhotoJobId('cmabc123', 'reanalyze')).not.toContain(':');
+  });
+});

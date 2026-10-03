@@ -9,7 +9,7 @@ export interface AnalyzePhotoJob {
   reason: 'upload' | 'reanalyze';
 }
 
-/** Deterministic job id so duplicate enqueues of the same photo collapse into one job. */
+/** Deterministic job id so duplicate enqueues of the same photo collapse into one job. BullMQ rejects custom ids containing ":" (its Redis key separator), hence "-". */
 export function analyzePhotoJobId(photoId: string, reason: AnalyzePhotoJob['reason'], nonce?: string): string {
-  return reason === 'upload' ? `analyze:${photoId}` : `analyze:${photoId}:${nonce ?? Date.now()}`;
+  return reason === 'upload' ? `analyze-${photoId}` : `analyze-${photoId}-${nonce ?? Date.now()}`;
 }

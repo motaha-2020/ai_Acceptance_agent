@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@acceptance/ai": "workspace:*",
     "@acceptance/checklist": "workspace:*",
     "@acceptance/db": "workspace:*",
     "@acceptance/queue": "workspace:*",

@@ -272,6 +272,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@acceptance/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@acceptance/checklist':
         specifier: workspace:*
         version: link:../../packages/checklist

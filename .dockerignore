@@ -1,0 +1,18 @@
+# Build context = repo root (apps/api/Dockerfile, apps/worker/Dockerfile). Keep it small and secret-free.
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/*.log
+.git
+.github
+.env
+.env.*
+!.env.example
+data
+.data
+*SSH*.txt
+*.pem
+*.key
+infra/backups

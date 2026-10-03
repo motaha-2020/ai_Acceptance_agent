@@ -9,6 +9,8 @@ import { FakeAnalysisProvider, ProviderRegistry } from './providers.js';
 /** Worker-specific settings (shared by the standalone worker and the API's embedded worker). */
 export const WorkerEnv = z.object({
   AI_PROVIDER: z.string().min(1).default('fake'),
+  /** Optional model override for a single real provider (e.g. claude-sonnet-5-5). */
+  AI_MODEL: z.string().optional(),
   AI_CONCURRENCY: z.coerce.number().int().min(1).max(32).default(2),
   AI_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
   /** USD per UTC day; 0 disables the guard. */

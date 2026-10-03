@@ -76,8 +76,8 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P7 Deploy & Hardening
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T7.1 | Hetzner provisioning (Caddy, ufw, backups) | DevOps Automator | todo | |
-| T7.2 | CI/CD | DevOps Automator | todo | |
+| T7.1 | Hetzner provisioning (Caddy, ufw, backups) | DevOps Automator (opus) | review | 2026-10-03 live at http://178.104.221.75 (no domain yet). infra/docker-compose.prod.yml: caddy (only published ports 80/443), api, worker, postgres 16, redis 7 (AOF, noeviction), minio (pgsty/minio: upstream images discontinued) + minio-init (private bucket, least-privilege app key); data network internal, limits, log rotation, read-only app containers. apps/{api,worker}/Dockerfile multi-stage, non-root, tini, healthchecks (worker heartbeat). infra/scripts: deploy.sh (git-tracked sync over ssh, build on server, migrate, seed, up --wait, health check, auto-rollback), rollback.sh, backup.sh (daily systemd timer 02:30 UTC, pg_dump 7 days + MinIO mirror), logs.sh, init-secrets/set-env/push-ai-keys. Secrets only in /opt/acceptance/.env + ADMIN_PASSWORD (600). Worker registers claude/gemini/openai/cascade from @acceptance/ai (AI_PROVIDER, AI_MODEL); prod = claude-sonnet-5-5. Fixed BullMQ job id (":" rejected by BullMQ, uploads were never queued with Redis). Smoke: real photo -> Claude analysis -> pending_review in 6 s. Runbook infra/README.md. Open: off-site backups, image size ~1 GB (Prisma + eager embedded-postgres import), no periodic requeue of stuck uploads |
+| T7.2 | CI/CD | DevOps Automator | todo | 2026-10-03 minimum added with T7.1: .github/workflows/ci.yml (install, build, typecheck, test, docker build api+worker) - never run (nothing pushed). CD = manual infra/scripts/deploy.sh |
 | T7.3 | Monitoring | DevOps Automator | todo | |
 | T7.4 | E2E tests | API Tester | todo | |
 | T7.5 | Security review | Security Engineer | todo | |

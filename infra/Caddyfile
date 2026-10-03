@@ -1,0 +1,51 @@
+# Reverse proxy for the acceptance system.
+# SITE_ADDRESS = ":80" while there is no domain (plain HTTP on the IP);
+# set DOMAIN in /opt/acceptance/.env and Caddy obtains a certificate and redirects 80 -> 443.
+{
+	admin 127.0.0.1:2019
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		X-Frame-Options DENY
+	}
+
+	# Uploads: photos up to UPLOAD_MAX_BYTES (25 MB) plus multipart overhead.
+	request_body {
+		max_size 30MB
+	}
+
+	# Short public health alias -> API liveness.
+	handle /health {
+		rewrite * /health/live
+		reverse_proxy api:3000
+	}
+
+	# Presigned photo downloads (S3_PUBLIC_ENDPOINT = this site). Read-only: the API writes to MinIO
+	# over the internal network, browsers only GET/HEAD signed URLs. The Host header is passed through
+	# unchanged so MinIO can verify the SigV4 signature.
+	@objects {
+		path /{$S3_BUCKET}/*
+		method GET HEAD
+	}
+	handle @objects {
+		reverse_proxy minio:9000
+	}
+	handle /{$S3_BUCKET}/* {
+		respond 405
+	}
+
+	handle {
+		reverse_proxy api:3000
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
