@@ -47,3 +47,9 @@ wait_http() {
   done
   return 1
 }
+
+# Services to switch on a rollback to <version>: api + worker always, web when that version has a web image.
+rollback_services() {
+  local v="$1"
+  if docker image inspect "acceptance/web:$v" >/dev/null 2>&1; then echo "api worker web"; else echo "api worker"; fi
+}

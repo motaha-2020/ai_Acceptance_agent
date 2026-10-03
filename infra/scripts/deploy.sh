@@ -2,21 +2,38 @@
 # Idempotent deploy of the acceptance system to the Hetzner VPS.
 #
 # From the dev machine (repo root, Git Bash is fine):
-#   infra/scripts/deploy.sh                 sync working tree -> build -> migrate -> seed -> up -d -> health check
+#   infra/scripts/deploy.sh                 ship HEAD -> build api/worker/web -> migrate -> seed -> up -d -> health check
 #   infra/scripts/deploy.sh --restart worker   restart services only (e.g. after push-ai-keys.sh)
 #   infra/scripts/deploy.sh --sync-only        first-time bootstrap: sync + create /opt/acceptance/.env, no build
-# Env: DEPLOY_HOST (default deploy@178.104.221.75), SSH_KEY (default ~/.ssh/acceptance_hetzner_ed25519)
+# Env: DEPLOY_HOST (default deploy@178.104.221.75), SSH_KEY (default ~/.ssh/acceptance_hetzner_ed25519),
+#      DEPLOY_SOURCE=head (default: the committed HEAD, via git archive, so other people's uncommitted
+#      work never reaches production) | worktree (tracked + untracked-not-ignored files, for hotfix trials)
 #
 # On the server (what the local run executes after syncing):
 #   bash /opt/acceptance/app/infra/scripts/deploy.sh --on-server <version>
 #
-# The sync ships exactly what git would see (tracked + untracked-not-ignored files), so node_modules,
-# dist, data/, .env and local credential files never leave the machine.
+# Either way node_modules, dist, data/, .env and local credential files never leave the machine.
 set -euo pipefail
 
 DEPLOY_HOST="${DEPLOY_HOST:-deploy@178.104.221.75}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/acceptance_hetzner_ed25519}"
+DEPLOY_SOURCE="${DEPLOY_SOURCE:-head}"
 SSH=(ssh -i "$SSH_KEY" -o BatchMode=yes -o ServerAliveInterval=30 "$DEPLOY_HOST")
+
+# gzip'd tar of the source to ship, on stdout.
+source_tar() {
+  if [ "$DEPLOY_SOURCE" = head ]; then
+    git archive --format=tar.gz HEAD
+    return
+  fi
+  git ls-files -z --cached --others --exclude-standard \
+    | while IFS= read -r -d '' f; do
+        [ -e "$f" ] || continue                       # deleted but still tracked
+        case "$f" in .env|.env.*|*SSH*.txt|*.pem|*.key) [ "$f" = .env.example ] || continue ;; esac
+        printf '%s\0' "$f"
+      done \
+    | tar --null -T - -czf -
+}
 
 local_main() {
   if [ "${1:-}" = "--restart" ]; then
@@ -29,20 +46,14 @@ local_main() {
   cd "$(git rev-parse --show-toplevel)"
   local version
   version="$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-  [ -n "$(git status --porcelain)" ] && version="${version}-dirty"
-  echo ">> deploying $version to $DEPLOY_HOST" >&2
+  [ "$DEPLOY_SOURCE" != head ] && [ -n "$(git status --porcelain)" ] && version="${version}-dirty"
+  echo ">> deploying $version ($DEPLOY_SOURCE) to $DEPLOY_HOST" >&2
 
   # One-time bootstrap of /opt/acceptance (owner deploy).
   "${SSH[@]}" 'sudo install -d -o deploy -g deploy -m 750 /opt/acceptance /opt/acceptance/backups'
 
   echo ">> syncing source" >&2
-  git ls-files -z --cached --others --exclude-standard \
-    | while IFS= read -r -d '' f; do
-        [ -e "$f" ] || continue                       # deleted but still tracked
-        case "$f" in .env|.env.*|*SSH*.txt|*.pem|*.key) [ "$f" = .env.example ] || continue ;; esac
-        printf '%s\0' "$f"
-      done \
-    | tar --null -T - -czf - \
+  source_tar \
     | "${SSH[@]}" 'set -e; rm -rf /opt/acceptance/app.new; mkdir -p /opt/acceptance/app.new; tar -xzf - -C /opt/acceptance/app.new;
                    rm -rf /opt/acceptance/app.prev; [ -d /opt/acceptance/app ] && mv /opt/acceptance/app /opt/acceptance/app.prev; mv /opt/acceptance/app.new /opt/acceptance/app'
 
@@ -66,6 +77,7 @@ server_main() {
   export APP_VERSION="$version"
   dc build api
   dc build worker
+  dc build web
 
   log "datastores"
   dc up -d --wait postgres redis minio
@@ -81,16 +93,16 @@ server_main() {
 
   log "starting $version"
   printf 'APP_VERSION=%s\n' "$version" > "$ACC_RELEASE_ENV"
-  if ! dc up -d --wait --wait-timeout 180 --remove-orphans api worker caddy \
+  if ! dc up -d --wait --wait-timeout 180 api worker web caddy \
      || ! wait_http "http://127.0.0.1/health" 30 \
      || ! curl -fsS --max-time 10 -o /dev/null "http://127.0.0.1/health/ready"; then
     log "health check FAILED for $version"
     dc ps
-    dc logs --tail=80 api worker caddy || true
+    dc logs --tail=80 api worker web caddy || true
     if [ -n "$previous" ]; then
       log "auto-rollback to $previous"
       printf 'APP_VERSION=%s\n' "$previous" > "$ACC_RELEASE_ENV"
-      APP_VERSION="$previous" dc up -d --wait --wait-timeout 180 api worker || true
+      APP_VERSION="$previous" dc up -d --wait --wait-timeout 180 $(rollback_services "$previous") || true
     fi
     exit 1
   fi
@@ -116,7 +128,7 @@ install_backup_timer() {
 # Keep the 3 most recent versions of each app image (rollback targets).
 prune_images() {
   local repo
-  for repo in acceptance/api acceptance/worker; do
+  for repo in acceptance/api acceptance/worker acceptance/web; do
     docker images "$repo" --format '{{.Tag}}' | grep -v '^latest$' | sort -r | tail -n +4 \
       | xargs -r -I{} docker rmi "$repo:{}" >/dev/null 2>&1 || true
   done

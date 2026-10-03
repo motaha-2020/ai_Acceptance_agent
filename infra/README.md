@@ -5,7 +5,8 @@ Access: `ssh -i ~/.ssh/acceptance_hetzner_ed25519 deploy@178.104.221.75` (keys o
 `deploy` has passwordless sudo and is in the `docker` group). ufw allows 22/80/443 only.
 
 ```
-Internet ──80/443──> caddy ──> api:3000            (REST, /health, /api/v1/*)
+Internet ──80/443──> caddy ──> api:3000            (/api/v1/*, /health, /health/*, /docs*)
+                        ├────> web:3001           (everything else: Next.js portal + BFF /api/auth|proxy|locale)
                         └────> minio:9000           (GET/HEAD /<bucket>/* = presigned photo URLs only)
            api ──> postgres:5432, redis:6379, minio:9000     ("data" network: internal, no egress)
            worker ──> postgres, redis, minio + HTTPS to AI vendors ("egress" network)
@@ -13,9 +14,10 @@ Internet ──80/443──> caddy ──> api:3000            (REST, /health, /
 
 | File | Purpose |
 |---|---|
-| `docker-compose.prod.yml` | caddy, api, worker, postgres 16, redis 7, minio, minio-init (bucket + least-privilege app user) |
+| `docker-compose.prod.yml` | caddy, api, worker, web, postgres 16, redis 7, minio, minio-init (bucket + least-privilege app user) |
 | `Caddyfile` | reverse proxy; `:80` without a domain, automatic HTTPS when `DOMAIN` is set |
 | `../apps/api/Dockerfile`, `../apps/worker/Dockerfile` | multi-stage, prod deps only, non-root `node`, tini, healthchecks |
+| `../apps/web/Dockerfile` | Next.js `output: standalone` (NEXT_STANDALONE=true), non-root, healthcheck on `/login` |
 | `scripts/deploy.sh` | idempotent deploy (sync, build, migrate, seed, up, health check, auto-rollback) |
 | `scripts/rollback.sh` | switch api/worker to an earlier image version |
 | `scripts/backup.sh` + `systemd/acceptance-backup.{service,timer}` | daily pg_dump + MinIO mirror, 7 days of dumps |
@@ -57,10 +59,11 @@ infra/scripts/deploy.sh --restart worker   # recreate services only (after an .e
 ```
 
 What it does (all steps idempotent):
-1. `git ls-files` (tracked + untracked-not-ignored) -> tar over ssh -> `/opt/acceptance/app`
+1. `git archive HEAD` (committed state only; `DEPLOY_SOURCE=worktree` ships tracked + untracked-not-ignored
+   files instead) -> tar over ssh -> `/opt/acceptance/app`
    (node_modules, dist, `data/`, `.env`, credential files are never sent).
 2. `init-secrets.sh` (no-op once secrets exist).
-3. Builds `acceptance/api:<version>` then `acceptance/worker:<version>` on the server, one at a time
+3. Builds `acceptance/api`, `acceptance/worker`, `acceptance/web` `:<version>` on the server, one at a time
    (turbo concurrency 2, tsc heap 1.5 GB; BuildKit pnpm-store cache keeps rebuilds fast).
    `<version>` = `<utc>-<git sha>[-dirty]`.
 4. Starts postgres/redis/minio, runs `minio-init`, `prisma migrate deploy`, the idempotent seed.
@@ -136,11 +139,12 @@ Practise this drill before UAT.
 1. DNS: `A` record `<domain>` -> `178.104.221.75` (and `AAAA` if IPv6 is used).
 2. On the server:
    ```bash
-   printf 'DOMAIN=acceptance.example.com\nPUBLIC_URL=https://acceptance.example.com\n' \
+   printf 'DOMAIN=acceptance.example.com\nPUBLIC_URL=https://acceptance.example.com\nCOOKIE_SECURE=true\n' \
      | bash /opt/acceptance/app/infra/scripts/set-env.sh
    ```
-   Set `CORS_ORIGINS` too once the web portal exists.
-3. `infra/scripts/deploy.sh --restart caddy api worker` (or a full deploy). Caddy obtains a Let's Encrypt
+   `COOKIE_SECURE=true` is required as soon as HTTPS works (portal session cookies). The portal is
+   same-origin with the API behind Caddy, so `CORS_ORIGINS` can stay empty.
+3. `infra/scripts/deploy.sh --restart caddy api worker web` (or a full deploy). Caddy obtains a Let's Encrypt
    certificate on first request (ports 80 and 443 are already open) and redirects HTTP to HTTPS.
    `PUBLIC_URL` is also the presigned photo URL host, so photo links switch to HTTPS too.
 
@@ -150,6 +154,7 @@ Practise this drill before UAT.
 |---|---|---|
 | postgres | 1.5 GB | shared_buffers 512 MB |
 | api / worker | 1 GB each | Node heap 768 MB |
+| web | 512 MB | Node heap 384 MB; `.next/cache` on tmpfs |
 | minio | 1 GB | |
 | redis | 512 MB | maxmemory 384 MB, noeviction (BullMQ), AOF on |
 | caddy | 256 MB | |
@@ -162,3 +167,12 @@ Logs: json-file, 10 MB x 5 per container. Builds run on the server; 2 GB swap ab
 `pnpm install --frozen-lockfile && pnpm build && pnpm typecheck && pnpm test` on push/PR, then builds both
 production images. Deploys stay manual (`deploy.sh`) until a deploy key and
 environment protection are set up.
+
+## Web portal
+
+`web` (Next.js standalone) is reached only through Caddy; it calls the API internally at
+`API_URL=http://api:3000`. Session tokens live in httpOnly cookies set by the BFF.
+
+**Risk while there is no domain:** `COOKIE_SECURE=false`, so session cookies (access + refresh token)
+travel over plain HTTP and can be sniffed on the network path. Add a domain, then set
+`COOKIE_SECURE=true` (see "Add a domain") before real users log in.

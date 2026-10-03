@@ -40,6 +40,8 @@ services:
     depends_on:
       api:
         condition: service_healthy
+      web:
+        condition: service_healthy
     ports:
       - "80:80"
       - "443:443"
@@ -116,6 +118,34 @@ services:
     deploy:
       resources:
         limits: { cpus: "2.0", memory: 1G }
+    logging: *logging
+
+  # Next.js portal (BFF). Talks to the API over the internal network only (API_URL), never via the public URL.
+  web:
+    image: acceptance/web:${APP_VERSION:-latest}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3001"
+      API_URL: http://api:3000
+      # RISK: must be true once a domain + HTTPS exists; false only while the portal is plain HTTP on the IP.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      NODE_OPTIONS: --max-old-space-size=384
+    networks: [edge]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/apps/web/.next/cache:uid=1000,gid=1000,mode=0755
+    security_opt: [no-new-privileges:true]
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
     logging: *logging
 
   postgres:

@@ -40,8 +40,16 @@
 		respond 405
 	}
 
-	handle {
+	# REST API (mobile app + scripts) and its liveness/readiness probes. Note: /api/auth/*, /api/proxy/*
+	# and /api/locale belong to the web portal's BFF, so only /api/v1/* goes to the API.
+	@api path /api/v1 /api/v1/* /health/* /docs /docs/* /docs-json /files/*
+	handle @api {
 		reverse_proxy api:3000
+	}
+
+	# Everything else: the Next.js portal (pages + BFF routes).
+	handle {
+		reverse_proxy web:3001
 	}
 
 	log {

@@ -20,6 +20,8 @@ ensure DOMAIN ""
 ensure PUBLIC_URL "http://${ip}"
 ensure CORS_ORIGINS ""
 ensure SWAGGER_ENABLED "false"
+# Portal session cookies: set true together with DOMAIN (HTTPS). false only while serving plain HTTP on the IP.
+ensure COOKIE_SECURE "false"
 ensure LOG_LEVEL "info"
 
 # Datastores (hex: safe inside URLs)

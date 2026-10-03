@@ -2,7 +2,7 @@
 # Production image for @acceptance/worker (BullMQ consumer, real AI providers). Build context = repository root:
 #   docker build -f apps/worker/Dockerfile -t acceptance/worker .
 # Shares its build/prod stage layout with apps/api/Dockerfile, so BuildKit reuses the install layers.
-# Stages: build (full install + turbo build) -> prod (prod-only deps + dist + prisma client) -> runtime.
+# Stages: build (filtered install + build) -> prod (prod-only deps + dist + prisma client) -> runtime.
 # Memory-safe for an 8 GB host: turbo concurrency 2, tsc heap capped.
 
 ARG NODE_IMAGE=node:24-bookworm-slim
@@ -22,9 +22,10 @@ WORKDIR /repo
 FROM base AS build
 COPY . .
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile --store-dir /pnpm/store
+    pnpm install --frozen-lockfile --filter "@acceptance/worker..." --store-dir /pnpm/store
 ENV NODE_OPTIONS=--max-old-space-size=1536
-RUN pnpm exec turbo run build --filter=@acceptance/worker... --concurrency=2 --no-daemon
+# Only this app and its workspace dependencies (not the web/mobile apps); topological order, 2 at a time.
+RUN pnpm --filter "@acceptance/worker..." --workspace-concurrency=2 run build
 
 # ---------- prod: production dependencies only + compiled output ----------
 FROM base AS prod
