@@ -8,8 +8,8 @@ dist/
 *.log
 coverage/
 .expo/
-data/
-.data/
+/data/
+/.data/
 
 # local credentials / notes
 *SSH*.txt
