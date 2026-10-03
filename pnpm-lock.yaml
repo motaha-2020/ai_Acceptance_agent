@@ -657,6 +657,31 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.20.5)(jsdom@25.0.1(supports-color@8.1.1))(lightningcss@1.32.0)(supports-color@8.1.1)(terser@5.51.2)
 
+  packages/parsers:
+    dependencies:
+      exceljs:
+        specifier: ^4.4.0
+        version: 4.4.0
+      fast-xml-parser:
+        specifier: ^4.5.0
+        version: 4.5.7
+      jszip:
+        specifier: ^3.10.1
+        version: 3.10.2
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.5
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.5)(jsdom@25.0.1(supports-color@8.1.1))(lightningcss@1.32.0)(supports-color@8.1.1)(terser@5.51.2)
+
   packages/queue:
     dependencies:
       bullmq:
@@ -703,6 +728,9 @@ importers:
 
   tools/ingest:
     dependencies:
+      '@acceptance/parsers':
+        specifier: workspace:*
+        version: link:../../packages/parsers
       '@acceptance/shared':
         specifier: workspace:*
         version: link:../../packages/shared

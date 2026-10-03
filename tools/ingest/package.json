@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@acceptance/parsers": "workspace:*",
     "@acceptance/shared": "workspace:*",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^4.5.0",
