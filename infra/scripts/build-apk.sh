@@ -104,7 +104,7 @@ server_main() {
     --memory 5g --memory-swap 7g --cpus 3 \
     -v "$build/src:/work" -v "$build/out:/out" \
     -v "$ACC_ROOT/secrets/android:/secrets:ro" \
-    -v acceptance-gradle-cache:/root/.gradle -v acceptance-mobile-pnpm:/pnpm-store \
+    -v acceptance-gradle-cache:/opt/gradle-home -v acceptance-mobile-pnpm:/pnpm-store \
     --env-file "$ACC_ROOT/secrets/android/keystore.env" \
     -e API_BASE_URL="$api_base" -e APP_VERSION="$version" -e APP_VERSION_CODE="$code" -e UPDATES_CHANNEL="$channel" \
     -e OUT_NAME="acceptance-field-$version-$code.apk" -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" -e PNPM_VERSION="$PNPM_VERSION" \

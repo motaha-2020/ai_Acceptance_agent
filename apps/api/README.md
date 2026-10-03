@@ -66,6 +66,8 @@ refuses the fake AI provider.
 | Snags | `GET /snags`, `GET /snags/:id`, `POST /snags/:id/fix|verify|reopen` |
 | Metrics | `GET /metrics/agreement?projectId&from&to` (AI vs human per category + autonomy policy) |
 | Audit | `GET /audit-logs?entity&entityId&actorId` |
+| App releases | public `GET /app/releases/latest?channel` (alias `/app-releases/latest`), `GET /app/releases/latest/download`, `GET /app/releases/:id/download` (302 to a signed URL); admin `GET/POST /app/releases`, `PATCH /app/releases/:id`, `POST /app/releases/:id/publish|unpublish` |
+| OTA (expo-updates v1) | public `GET /updates/manifest` (headers `expo-platform`, `expo-runtime-version`, `expo-channel-name`; signed multipart, 204 = no update); admin `GET /updates`, `GET /updates/heads`, `POST /updates`, `POST /updates/rollback` |
 
 Error body (all failures):
 `{ "statusCode": 409, "error": { "code": "OPEN_SNAGS", "message": "...", "details": {...} }, "requestId": "..." }`

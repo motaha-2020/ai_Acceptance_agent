@@ -176,3 +176,38 @@ environment protection are set up.
 **Risk while there is no domain:** `COOKIE_SECURE=false`, so session cookies (access + refresh token)
 travel over plain HTTP and can be sniffed on the network path. Add a domain, then set
 `COOKIE_SECURE=true` (see "Add a domain") before real users log in.
+
+## Mobile app: APK builds and OTA updates (T5.5–T5.9)
+
+Details and the release workflow: `apps/mobile/README.md`. Server side:
+
+```
+/opt/acceptance/secrets/                 chmod 700, owner deploy. BACK UP OFF-SERVER (never in git, never in chat)
+  ota/private-key.pem                    OTA manifest signing key (600), mounted read-only into api as OTA_PRIVATE_KEY_PATH
+  ota/certificate.pem                    its public certificate = apps/mobile/certs/ota-certificate.pem (embedded in the APK)
+  android/release.keystore               APK signing key (PKCS12, 600)
+  android/keystore.env                   keystore passwords/alias as ORG_GRADLE_PROJECT_ACCEPTANCE_* (600)
+/opt/acceptance/mobile-build/{src,out}   last APK build source + output;  build.log
+/opt/acceptance/apk-releases.log, ota-releases.log   history
+```
+
+- `init-ota-key.sh` (run by every deploy, idempotent) creates the OTA key pair once. Losing or replacing
+  it means installed apps reject all OTA updates until they install an APK with the new certificate.
+- `build-apk.sh` builds inside `reactnativecommunity/react-native-android` (JDK 17 + Android SDK + NDK),
+  capped at 5 GB RAM + 2 GB swap, 3 CPUs, 2 Gradle workers — run it when the portal is quiet (first build
+  ~25 min, cached rebuilds faster). Gradle/pnpm caches: docker volumes `acceptance-gradle-cache`,
+  `acceptance-mobile-pnpm` (safe to delete to reclaim disk). The release keystore is generated on the
+  first build. **Losing the keystore = no updates for installed apps ever again** (Android refuses an
+  APK signed with another key; every phone would have to uninstall, losing unsent photos).
+  Back it up now and after creation:
+  ```bash
+  ssh -i ~/.ssh/acceptance_hetzner_ed25519 deploy@178.104.221.75 'tar -czf - -C /opt/acceptance secrets' > acceptance-secrets-$(date +%F).tgz
+  # store the archive in a password manager / encrypted vault, not in the repo
+  ```
+- APKs and OTA files live in the private MinIO bucket (`app-releases/…`, `ota/…`) and are only served
+  through short-lived signed URLs: `GET /api/v1/app/releases/<id>/download` (stable link, 302) and the
+  per-request asset URLs inside signed OTA manifests (`GET /api/v1/updates/manifest`).
+- Public endpoints for the web `/app` page: `GET /api/v1/app/releases/latest?channel=production`
+  (alias `/api/v1/app-releases/latest`) → `{ id, version, versionCode, runtimeVersion, notes, changelog,
+  sizeBytes, sha256, downloadUrl, minSupportedVersion, minSupportedVersionCode, isCritical, publishedAt }`,
+  404 when nothing is published; `GET /api/v1/app/releases/latest/download` → 302 to the newest APK.
