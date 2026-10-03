@@ -8,9 +8,9 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 |---|---|---|---|---|
 | T0.1 | Monorepo scaffold (pnpm/turbo/tsconfig) | orchestrator | done | 2026-10-03 |
 | T0.2 | progress.md + ADR docs | orchestrator | done | ADR 0001 |
-| T0.3 | Shared zod schemas/enums | orchestrator | doing | enums + AnalysisResult contract written; needs install+build check |
+| T0.3 | Shared zod schemas/enums | orchestrator | done | enums + AnalysisResult contract; builds clean |
 | T0.4 | docker-compose dev stack | orchestrator | done | infra/docker-compose.dev.yml (Docker not installed locally) |
-| T0.5 | git init + CI workflow | - | todo | |
+| T0.5 | git init + CI workflow | orchestrator | doing | git init done; CI pending GitHub remote |
 
 ## P1 Data & Ingestion
 | ID | Task | Owner | Status | Notes |
