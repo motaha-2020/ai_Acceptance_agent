@@ -68,6 +68,7 @@ export const PERMISSION_MATRIX: Record<Role, PermissionRule[]> = {
     { action: 'approve', subject: 'Photo' },
     { action: ['create', 'update'], subject: 'Snag' },
     { action: 'verify', subject: 'Snag' },
+    { action: 'create', subject: 'Report' },
   ],
   engineer: [
     { action: 'read', subject: [...READ_DOMAIN, 'User'] },
@@ -75,7 +76,6 @@ export const PERMISSION_MATRIX: Record<Role, PermissionRule[]> = {
     { action: 'assign', subject: 'Visit' },
     { action: 'upload', subject: 'Visit' },
     { action: 'fix', subject: 'Snag' },
-    { action: 'create', subject: 'Report' },
   ],
   technician: [
     { action: 'read', subject: ['Project', 'Site', 'Device'] },

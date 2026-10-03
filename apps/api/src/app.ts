@@ -18,6 +18,7 @@ import { HealthModule } from './health/health.js';
 import { MetricsModule } from './metrics/metrics.js';
 import { PhotosModule } from './photos/photos.module.js';
 import { ProjectsModule } from './projects/projects.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 import { ReviewsModule } from './reviews/reviews.module.js';
 import { SitesModule } from './sites/sites.module.js';
 import { SnagsModule } from './snags/snags.module.js';
@@ -45,6 +46,7 @@ export class AppModule {
         MetricsModule,
         HealthModule,
         AppReleasesModule,
+        ReportsModule,
         EmbeddedWorkerModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: GlobalErrorFilter }],

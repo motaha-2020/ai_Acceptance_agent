@@ -184,6 +184,9 @@ importers:
       '@acceptance/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@acceptance/parsers':
+        specifier: workspace:*
+        version: link:../../packages/parsers
       '@acceptance/queue':
         specifier: workspace:*
         version: link:../../packages/queue

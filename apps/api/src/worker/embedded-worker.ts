@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import type { PrismaClient } from '@acceptance/db';
 import type { JobQueue } from '@acceptance/queue';
 import type { ObjectStorage } from '@acceptance/storage';
-import { startAnalysisRuntime, type ProviderRegistry } from '@acceptance/worker';
+import { startAnalysisRuntime, startReportRuntime, type ProviderRegistry } from '@acceptance/worker';
 import type { AppConfig } from '../config/config.js';
 import { CONFIG, LOGGER, PRISMA, PROVIDERS, QUEUE, STORAGE } from '../core/tokens.js';
 
@@ -32,6 +32,7 @@ export class EmbeddedWorker implements OnApplicationBootstrap {
       logger: this.logger.child({ component: 'embedded-worker' }),
       env: this.config,
     });
+    startReportRuntime({ prisma: this.prisma, storage: this.storage, queue: this.queue, logger: this.logger.child({ component: 'embedded-report-worker' }) });
   }
 }
 

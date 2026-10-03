@@ -78,6 +78,8 @@ export class AuditService {
         return this.prisma.snag.findUnique({ where: { id } });
       case 'AppRelease':
         return this.prisma.appRelease.findUnique({ where: { id } });
+      case 'SiteDocuments':
+        return this.prisma.siteTechnicalData.findUnique({ where: { siteId: id }, select: { siteData: true, survey: true, sources: true, warnings: true, updatedAt: true } });
       default:
         return null;
     }

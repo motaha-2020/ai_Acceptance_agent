@@ -15,6 +15,7 @@
   "dependencies": {
     "@acceptance/checklist": "workspace:*",
     "@acceptance/db": "workspace:*",
+    "@acceptance/parsers": "workspace:*",
     "@acceptance/queue": "workspace:*",
     "@acceptance/shared": "workspace:*",
     "@acceptance/storage": "workspace:*",
@@ -29,6 +30,7 @@
     "@nestjs/platform-fastify": "^11.1.0",
     "@nestjs/swagger": "^11.2.0",
     "@node-rs/argon2": "^2.0.2",
+    "@prisma/client": "6.19.3",
     "exifr": "^7.1.3",
     "fastify": "5.11.3",
     "pino": "^9.5.0",
@@ -36,8 +38,7 @@
     "rxjs": "^7.8.1",
     "sharp": "^0.34.0",
     "zod": "^3.23.8",
-    "zod-to-json-schema": "^3.23.0",
-    "@prisma/client": "6.19.3"
+    "zod-to-json-schema": "^3.23.0"
   },
   "devDependencies": {
     "@nestjs/testing": "^11.1.0",
