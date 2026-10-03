@@ -4,3 +4,16 @@ packages:
   - "tools/*"
 allowBuilds:
   esbuild: true
+  prisma: true
+  "@prisma/client": true
+  "@prisma/engines": true
+  "@embedded-postgres/windows-x64": true
+  "@embedded-postgres/linux-x64": true
+  "@embedded-postgres/darwin-arm64": true
+  "@embedded-postgres/darwin-x64": true
+  "@nestjs/core": false
+  "@scarf/scarf": false
+  sharp: false
+  msgpackr-extract: false
+  protobufjs: false
+  "@google/genai": false
