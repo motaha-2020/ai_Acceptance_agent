@@ -81,3 +81,12 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 
 ## Phase 2 backlog
 Material BOQ agent, guidance agent, follow-up agent, autonomy policy, fine-tuned local vision model.
+
+## Model assignment (chosen by orchestrator; Fable not available -> Opus is the top tier)
+| Work | Model | Why |
+|---|---|---|
+| Orchestration, architecture, AI prompt/checklist design, code + security review, phase sign-off | Opus 5.5 | hardest reasoning, mistakes cost most |
+| Backend core (schema, auth/RBAC, upload, queue), AI package, report generator, mobile offline sync | Opus 5.5 | complex logic and correctness |
+| Web/mobile UI screens, CRUD endpoints, tests, infra scripts, docx/xlsx parsers | Sonnet 5.5 | well-specified work, faster and cheaper |
+| Bulk extraction, file inventory, docs, simple renames | Haiku 4.5 | cheap high-volume |
+| Runtime photo analysis | decided by bake-off T3.6 | Gemini Flash first pass + Claude for uncertain photos is the starting hypothesis |
