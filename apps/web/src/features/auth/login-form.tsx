@@ -47,7 +47,8 @@ export function LoginForm({ next }: { next: string }) {
   return (
     <Card>
       <CardContent className="p-5">
-        <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
+        {/* method="post": a submit before hydration must not put the password in the URL (and the access logs). */}
+        <form method="post" onSubmit={handleSubmit(onSubmit)} noValidate className="flex flex-col gap-4">
           {failure ? (
             <Alert tone="danger" role="alert">
               {failure}

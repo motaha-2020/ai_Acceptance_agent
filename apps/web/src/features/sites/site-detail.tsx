@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { ArrowRight, Cpu, ListChecks, MapPin } from 'lucide-react';
+import { ArrowRight, Cpu, ListChecks, MapPin, Plus, Users } from 'lucide-react';
 import { PhotoStatus } from '@acceptance/shared';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,7 @@ import { formatDateTime, formatNumber, formatPercent } from '@/lib/format';
 import { CATEGORIES, categoryTitle } from '@/lib/taxonomy';
 import { cn } from '@/lib/utils';
 import { PhotoDialog } from './photo-dialog';
+import { AssignTechniciansDialog, NewVisitDialog } from './visit-dialogs';
 import { fetchSiteProgress, type SiteProgress } from './progress';
 
 export function SiteDetail({ siteId }: { siteId: string }) {
@@ -278,30 +279,61 @@ function PhotoGrid({ siteId }: { siteId: string }) {
 function VisitsTable({ siteId }: { siteId: string }) {
   const t = useTranslations('siteDetail.visits');
   const locale = useLocale() as AppLocale;
+  const can = useCan();
   const [page, setPage] = useState(1);
+  const [creating, setCreating] = useState(false);
+  const [assigning, setAssigning] = useState<VisitDto | null>(null);
   const q = useQuery({ queryKey: ['visits', siteId, page], queryFn: () => listVisits({ siteId, page, pageSize: 10 }), placeholderData: keepPreviousData });
+  const canAssign = can('assign', 'Visit');
   const columns: Column<VisitDto>[] = [
     { id: 'title', header: t('title'), cell: (v) => <span className="font-medium">{v.title}</span> },
     { id: 'type', header: t('type'), cell: (v) => t(`types.${v.type}`) },
     { id: 'status', header: t('status'), cell: (v) => <VisitStatusBadge status={v.status} /> },
-    { id: 'tech', header: t('technicians'), cell: (v) => v.assignments?.map((a) => a.user.name).join(', ') || '—' },
+    {
+      id: 'tech',
+      header: t('technicians'),
+      cell: (v) => (
+        <span className="flex items-center gap-2">
+          <span>{v.assignments?.map((a) => a.user.name).join(', ') || '—'}</span>
+          {canAssign && v.status !== 'closed' && v.status !== 'cancelled' ? (
+            <Button variant="outline" size="sm" onClick={() => setAssigning(v)} aria-label={`${t('manage')}: ${v.title}`}>
+              <Users aria-hidden />
+              {t('manage')}
+            </Button>
+          ) : null}
+        </span>
+      ),
+    },
     { id: 'photos', header: t('photos'), cell: (v) => formatNumber(v._count?.photos ?? 0, locale) },
     { id: 'when', header: t('when'), cell: (v) => formatDateTime(v.startedAt ?? v.scheduledFor ?? v.createdAt, locale) },
   ];
   return (
-    <DataTable
-      columns={columns}
-      rows={q.data?.items}
-      rowKey={(v) => v.id}
-      isLoading={q.isLoading}
-      error={q.error}
-      onRetry={() => void q.refetch()}
-      page={page}
-      pageSize={10}
-      total={q.data?.total ?? 0}
-      onPageChange={setPage}
-      emptyTitle={t('empty')}
-      caption={t('title')}
-    />
+    <>
+      <NewVisitDialog siteId={siteId} open={creating} onClose={() => setCreating(false)} />
+      <AssignTechniciansDialog siteId={siteId} visit={assigning} onClose={() => setAssigning(null)} />
+      <DataTable
+        toolbar={
+          can('create', 'Visit') ? (
+            <Button onClick={() => setCreating(true)}>
+              <Plus aria-hidden />
+              {t('new')}
+            </Button>
+          ) : undefined
+        }
+        columns={columns}
+        rows={q.data?.items}
+        rowKey={(v) => v.id}
+        isLoading={q.isLoading}
+        error={q.error}
+        onRetry={() => void q.refetch()}
+        page={page}
+        pageSize={10}
+        total={q.data?.total ?? 0}
+        onPageChange={setPage}
+        emptyTitle={t('empty')}
+        caption={t('title')}
+      />
+    </>
   );
 }
+

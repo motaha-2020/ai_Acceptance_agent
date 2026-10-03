@@ -68,6 +68,10 @@ export const deleteDevice = (id: string): Promise<void> => apiFetch(`/devices/${
 
 export const listVisits = (q: In<typeof ListVisitsQuery> = {}): Promise<Paginated<VisitDto>> => apiFetch('/visits', { query: q });
 export const createVisit = (body: z.input<typeof CreateVisitRequest>): Promise<VisitDto> => apiFetch('/visits', { method: 'POST', body });
+export const assignTechnicians = (visitId: string, userIds: string[]): Promise<VisitDto> =>
+  apiFetch(`/visits/${visitId}/assignments`, { method: 'POST', body: { userIds } });
+export const unassignTechnician = (visitId: string, userId: string): Promise<VisitDto> =>
+  apiFetch(`/visits/${visitId}/assignments/${userId}`, { method: 'DELETE' });
 
 // ───────────── photos & review ─────────────
 export const listPhotos = (q: In<typeof ListPhotosQuery> = {}): Promise<Paginated<PhotoDto>> => apiFetch('/photos', { query: q });

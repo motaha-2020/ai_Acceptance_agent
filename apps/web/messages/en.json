@@ -344,7 +344,20 @@
       "photos": "Photos",
       "when": "When",
       "empty": "No visits yet",
-      "types": { "installation": "Installation", "snag_fix": "Snag fix", "survey": "Survey" }
+      "types": { "installation": "Installation", "snag_fix": "Snag fix", "survey": "Survey" },
+      "new": "New visit",
+      "newDescription": "Assigned technicians see the visit in the field app with its shot list.",
+      "titleField": "Visit title",
+      "scheduledFor": "Date",
+      "notes": "Notes",
+      "assignees": "Technicians",
+      "assigneesHint": "Active technicians and engineers. They can only upload photos to visits they are assigned to.",
+      "noAssignees": "No active technician or engineer accounts. Create one under Users first.",
+      "manage": "Technicians",
+      "manageTitle": "Technicians of {title}",
+      "created": "Visit created",
+      "assigned": "Technicians updated",
+      "required": "Enter a title"
     }
   },
   "accuracy": {
