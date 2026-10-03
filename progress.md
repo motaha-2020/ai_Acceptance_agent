@@ -16,10 +16,10 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
 | T1.1 | Parse sangs docx -> snags_seed.jsonl | Data Engineer | review | tools/ingest: 108 images, 168 (image,remark) records, 99 groups; data/snags_seed.jsonl |
-| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | doing | packages/checklist |
+| T1.2 | Snag taxonomy (ar/en) + per-category checklists | AI Engineer | review | packages/checklist: 46 codes, 20 checklists, cacheable prompt builder, matchReviewerRemark() maps 165/167 seed remarks; docs/snag-taxonomy.md (generated) awaits reviewer approval; 34 tests pass |
 | T1.3 | Parse LLD/inventory/mapping/fiber-test -> site seed | Data Engineer | review | data/sites/nasr3-r21c.json (zod-validated) + 4 cross-source warnings |
 | T1.4 | Import 4 sites' photos as demo/eval data | Data Engineer | review | data/photo_catalog.jsonl: 791 photos, 0 unmapped, 95 sha256 dup groups |
-| T1.5 | OCR SID checklist images | AI Engineer | doing | |
+| T1.5 | OCR SID checklist images | AI Engineer | review | 5 PNGs legible; all 58 items transcribed + reconciled with checklists in docs/sid-checklist-ocr-plan.md (32 photo-verifiable, 26 mapped to codes); no OCR pipeline needed |
 
 ## P2 Backend
 | ID | Task | Owner | Status | Notes |

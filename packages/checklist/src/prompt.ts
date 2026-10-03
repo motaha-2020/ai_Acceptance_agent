@@ -1,0 +1,144 @@
+import { PhotoCategory } from '@acceptance/shared';
+import { CHECKLISTS, getChecklist } from './checklists.js';
+import { SNAG_TAXONOMY, TAXONOMY_VERSION, snagsForCategory } from './taxonomy.js';
+
+/**
+ * Prompt text for the vision model. Pure and deterministic (no dates, no randomness,
+ * no vendor SDK) so that:
+ *  - `prefix` is byte-identical for every category and photo -> cacheable prompt prefix
+ *    (system prompt / first content block with cache_control or implicit caching);
+ *  - `categoryBlock` changes only with the category -> second cache breakpoint;
+ *  - the photo itself goes after both blocks.
+ */
+export interface CategoryPrompt {
+  category: PhotoCategory;
+  /** Shared across all categories: role, rules, output contract, full taxonomy. */
+  prefix: string;
+  /** Category-specific checklist and applicable codes. */
+  categoryBlock: string;
+  /** prefix + categoryBlock, for providers without multi-block prompts. */
+  text: string;
+  /** Changes whenever any prompt text changes; store it with every analysis for evals. */
+  promptVersion: string;
+}
+
+const OUTPUT_CONTRACT = `{
+  "categoryMatches": boolean,            // does the photo show the declared category?
+  "detectedCategory": string,            // only when categoryMatches is false: best matching category id
+  "qualityIssues": ("blurry"|"dark"|"person_in_frame"|"wrong_subject")[],
+  "verdict": "accept" | "reject" | "uncertain",
+  "confidence": number,                  // 0..1, your confidence in the verdict
+  "snags": [
+    {
+      "code": string,                    // a code from the taxonomy below, exactly as written
+      "severity": "minor" | "major" | "critical",
+      "bbox": { "x": number, "y": number, "w": number, "h": number }, // optional, 0..1 of image size, x/y = top-left
+      "reasonAr": string,                // short remark in Egyptian technical Arabic, reviewer style
+      "reasonEn": string                 // same remark in English
+    }
+  ]
+}`;
+
+const RULES = [
+  'Judge only what is visible in this photo. Do not assume defects outside the frame and do not invent details.',
+  'Use only codes from the taxonomy. Prefer the most specific code; *_UNTIDY codes and OTHER_SNAG are fallbacks used only when no specific code fits. Read "confusable with" before choosing.',
+  'Report each code at most once per photo. If the same defect appears in several places, mention them in the reason and put the bbox on the clearest instance.',
+  'Use the default severity listed for the code. Raise to "critical" only for a clear safety or service risk (exposed conductor, crushed or kinked fiber).',
+  'Photo-quality codes (PERSON_IN_FRAME, PHOTO_BLURRY, PHOTO_TOO_DARK, WRONG_CATEGORY) must also be added to qualityIssues using the mapped flag.',
+  'If the photo shows a different category, set categoryMatches=false, set detectedCategory, emit WRONG_CATEGORY and verdict "reject"; do not check the declared category\'s criteria.',
+  'Verdict: "reject" if there is at least one snag (any severity) — reviewers reject photos for minor remarks too. "accept" only when every acceptance criterion visibly passes. "uncertain" when no snag is confirmed but a criterion cannot be judged from this photo, or your confidence is below 0.6.',
+  'A hand or fingers holding a label flat for a label close-up is normal and is not PERSON_IN_FRAME.',
+  'Green/red circles or drawings on the photo are reviewer annotations from old reports; ignore the marks themselves but still inspect what they point at.',
+  'reasonAr: write like the reviewers do — short, practical Egyptian technical Arabic, naming the item and the fix (e.g. "نقفل الداكت من النزله", "نشيل الاسبير من جوه الاو دي اف"). reasonEn: a plain English equivalent.',
+  'Return exactly one JSON object matching the output contract, with no prose before or after it.',
+];
+
+function renderTaxonomy(): string {
+  return SNAG_TAXONOMY.map((s) => {
+    const lines = [
+      `### ${s.code} [${s.defaultSeverity}]`,
+      `${s.titleEn} — ${s.titleAr}`,
+      s.descriptionEn,
+      `Look for: ${s.visualCues.join('; ')}.`,
+    ];
+    if (s.qualityIssue) lines.push(`qualityIssues flag: ${s.qualityIssue}`);
+    if (s.confusableWith.length) lines.push(`Confusable with: ${s.confusableWith.join(', ')}`);
+    if (s.reviewerPhrasesAr.length) lines.push(`Reviewer wording: ${s.reviewerPhrasesAr.slice(0, 3).join(' | ')}`);
+    return lines.join('\n');
+  }).join('\n\n');
+}
+
+function renderCategoryIndex(): string {
+  return CHECKLISTS.map((c) => `- ${c.category}: ${c.titleEn} (${c.titleAr})`).join('\n');
+}
+
+let cachedPrefix: string | undefined;
+
+/** The category-independent prompt prefix. */
+export function buildSharedPrefix(): string {
+  if (cachedPrefix !== undefined) return cachedPrefix;
+  cachedPrefix = [
+    '# Role',
+    'You are a site-acceptance inspector for the Telecom Egypt BIG-EDGE project. Contractor RAYA installs Cisco ASR-9902, ASR-9906 and NCS-57C3 routers with their racks, ODFs, patch cords, armoured fibre, power and earth cabling in Egyptian telephone exchanges. Before handover, every installation photo is checked against a checklist and any defect ("snag") is sent back to the technician to fix and re-photograph.',
+    'You receive ONE photo, the category it was uploaded under, and the checklist for that category. Find the snags visible in the photo and give a verdict.',
+    '',
+    '# Rules',
+    RULES.map((r, i) => `${i + 1}. ${r}`).join('\n'),
+    '',
+    '# Output contract',
+    OUTPUT_CONTRACT,
+    '',
+    '# Photo categories',
+    renderCategoryIndex(),
+    '',
+    `# Snag taxonomy (version ${TAXONOMY_VERSION})`,
+    renderTaxonomy(),
+  ].join('\n');
+  return cachedPrefix;
+}
+
+/** Category-specific instructions; place after the shared prefix and before the image. */
+export function buildCategoryBlock(category: PhotoCategory): string {
+  const c = getChecklist(category);
+  const codes = snagsForCategory(category).map((s) => s.code);
+  return [
+    `# Declared category: ${c.category} — ${c.titleEn} (${c.titleAr})`,
+    c.purposeEn,
+    '',
+    '## The photo should show one of',
+    c.requiredShots.map((s) => `- ${s.id}: ${s.descriptionEn}`).join('\n'),
+    '',
+    '## Acceptance criteria (each lists the codes to emit when it fails)',
+    c.acceptanceCriteria.map((a) => `- ${a.id}: ${a.textEn} -> ${a.guardsCodes.join(', ')}`).join('\n'),
+    '',
+    '## Codes applicable to this category',
+    codes.join(', '),
+    '',
+    '## What an accepted photo looks like',
+    c.goodExampleNotes.map((n) => `- ${n}`).join('\n'),
+    '',
+    'Inspect the photo now and return the JSON object.',
+  ].join('\n');
+}
+
+/** FNV-1a 32-bit, hex. Enough to detect prompt changes; not a security hash. */
+export function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+export function buildCategoryPrompt(category: PhotoCategory): CategoryPrompt {
+  const prefix = buildSharedPrefix();
+  const categoryBlock = buildCategoryBlock(category);
+  return {
+    category,
+    prefix,
+    categoryBlock,
+    text: `${prefix}\n\n${categoryBlock}`,
+    promptVersion: `${TAXONOMY_VERSION}+${fnv1a(prefix)}.${fnv1a(categoryBlock)}`,
+  };
+}
