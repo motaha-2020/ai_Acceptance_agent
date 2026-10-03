@@ -5,6 +5,7 @@ export type * from '@prisma/client';
 export { hashPassword, verifyPassword, needsRehash } from './password.js';
 export { runMigrations, schemaPath } from './migrate.js';
 export { seedDatabase, type SeedOptions, type SeedSummary } from './seed.js';
+export { computeAgreement, type AgreementFilter, type CategoryAgreement } from './metrics.js';
 export { startEmbeddedPostgres, type EmbeddedPostgresHandle, type EmbeddedPostgresOptions } from './embedded.js';
 
 /** Create a Prisma client for an explicit URL (falls back to DATABASE_URL). */
