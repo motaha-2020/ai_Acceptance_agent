@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PhotoCategory } from '@acceptance/shared';
-import { CategoryClassifier, classifySystemPrompt, parseGuess } from '../src/classify.js';
+import { CategoryClassifier, CLASSIFY_PROMPT_VERSION, classifySystemPrompt, parseGuess } from '../src/classify.js';
 import type { VendorClient, VendorReply, VendorRequest } from '../src/core.js';
 import { ClaudeVendor } from '../src/providers/claude.js';
 import { GeminiVendor } from '../src/providers/gemini.js';
@@ -34,7 +34,7 @@ describe('category classification (bulk upload)', () => {
     const v = stubVendor(['{"category":"pdu","confidence":0.91,"alternative":"power_system"}']);
     const out = await new CategoryClassifier(v, { retry: noRetry }).classify(await noiseJpeg(200, 150));
     expect(out.guess).toEqual({ category: 'pdu', confidence: 0.91, alternative: 'power_system' });
-    expect(out.meta.promptVersion).toMatch(/^cls1\./);
+    expect(out.meta.promptVersion.startsWith(`${CLASSIFY_PROMPT_VERSION}.`)).toBe(true);
     expect(out.meta.costUsd).toBeGreaterThan(0);
     const schema = v.requests[0]!.responseSchema!;
     expect(schema.name).toBe('category_guess');
