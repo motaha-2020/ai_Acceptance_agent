@@ -10,3 +10,8 @@ coverage/
 .expo/
 data/
 .data/
+
+# local credentials / notes
+*SSH*.txt
+*.pem
+*.key
