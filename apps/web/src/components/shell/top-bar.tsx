@@ -27,8 +27,9 @@ export function LanguageToggle() {
     router.refresh();
   }
   return (
-    <Button variant="ghost" size="sm" onClick={() => void switchTo()} aria-label={t('switchLanguage')} title={t('switchLanguage')}>
+    <Button variant="ghost" size="sm" onClick={() => void switchTo()} title={t('switchLanguage')}>
       <Languages aria-hidden />
+      <span className="sr-only">{t('switchLanguage')}: </span>
       <span lang={next}>{next === 'ar' ? 'العربية' : 'English'}</span>
     </Button>
   );

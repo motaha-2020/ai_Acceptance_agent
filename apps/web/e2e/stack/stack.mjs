@@ -88,6 +88,7 @@ export async function startStack({ persist = false, log = console.log } = {}) {
     AI_PROVIDER: 'fake',
     AI_CONCURRENCY: '2',
     LOGIN_RATE_LIMIT_MAX: '1000',
+    LOGIN_RATE_LIMIT_WINDOW_SECONDS: '1', // the per-IP login cap (20/window) would trip on rapid test logins
     SWAGGER_ENABLED: 'true',
   });
   const app = await apiApp.createApp(config, { overrides: { prisma, providers } });

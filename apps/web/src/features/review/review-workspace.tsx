@@ -159,6 +159,14 @@ export function ReviewWorkspace({ filters, onFiltersChange }: { filters: ReviewF
     [items, idx, qc, t, errorMessage],
   );
 
+  // Do not lose decisions that are still being saved if the tab is closed.
+  useEffect(() => {
+    if (inflight === 0) return;
+    const warn = (e: BeforeUnloadEvent): void => e.preventDefault();
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [inflight]);
+
   // When nothing is in flight, re-sync with the server (also tops the list up after a batch).
   const wasInflight = useRef(0);
   useEffect(() => {
@@ -313,8 +321,8 @@ export function ReviewWorkspace({ filters, onFiltersChange }: { filters: ReviewF
           description={inflight > 0 ? t('savingDescription') : t('emptyDescription')}
         />
       ) : (
-        <div className="grid gap-3 lg:h-[calc(100dvh-10.5rem)] lg:grid-cols-[minmax(0,1fr)_25rem]">
-          <div className="flex min-h-0 flex-col gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-3 lg:h-[calc(100dvh-10.5rem)] lg:grid-cols-[minmax(0,1fr)_25rem]">
+          <div className="flex min-h-0 min-w-0 flex-col gap-2">
             <PhotoViewer
               ref={viewer}
               className="h-[55vh] lg:h-auto lg:flex-1"
@@ -337,7 +345,7 @@ export function ReviewWorkspace({ filters, onFiltersChange }: { filters: ReviewF
             <Filmstrip items={items} activeIndex={idx} onSelect={(id) => setCurrentId(id)} />
           </div>
 
-          <aside className="flex min-h-0 flex-col rounded-lg border bg-card" aria-label={t('panel')}>
+          <aside className="flex min-h-0 min-w-0 flex-col rounded-lg border bg-card" aria-label={t("panel")} data-photo-id={item.id}>
             <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate font-semibold" data-testid="current-category">
@@ -374,8 +382,8 @@ export function ReviewWorkspace({ filters, onFiltersChange }: { filters: ReviewF
                   <Kbd className="bg-primary-foreground/20 text-primary-foreground">Enter</Kbd>
                 </Button>
               ) : null}
-              <div className="grid grid-cols-3 gap-2">
-                <Button variant="success" onClick={agree} disabled={agreeBlockReason !== null} title={agreeBlockReason ?? undefined} data-testid="agree">
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="success" size="lg" className="col-span-2" onClick={agree} disabled={agreeBlockReason !== null} title={agreeBlockReason ?? undefined} data-testid="agree">
                   <Check aria-hidden />
                   {t('actions.agree')}
                   <Kbd className="bg-black/20 text-inherit">A</Kbd>

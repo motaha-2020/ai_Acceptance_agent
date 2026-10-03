@@ -59,7 +59,7 @@ export async function makePhoto(label, seed) {
   return sharp(Buffer.from(svg)).jpeg({ quality: 82 }).toBuffer();
 }
 
-export async function uploadPhoto(apiUrl, token, { visitId, category, label, seed, capturedAt }) {
+export async function uploadPhoto(apiUrl, token, { visitId, category, label, seed, capturedAt, fixesPhotoId }) {
   const buf = await makePhoto(label, seed);
   const fd = new FormData();
   fd.set(
@@ -71,6 +71,7 @@ export async function uploadPhoto(apiUrl, token, { visitId, category, label, see
       capturedAt: capturedAt ?? new Date().toISOString(),
       gps: { lat: 30.0444 + seed * 0.0007, lng: 31.2357 + seed * 0.0005, accuracy: 6 },
       deviceInfo: { model: 'Pixel 7', os: 'Android 14', app: '0.1.0' },
+      ...(fixesPhotoId ? { fixesPhotoId } : {}),
     }),
   );
   fd.set('file', new Blob([buf], { type: 'image/jpeg' }), `${label}.jpg`);
@@ -105,7 +106,7 @@ async function waitFor(fn, ms = 60000, every = 400) {
  */
 export async function seedDemoData({ apiUrl, log = () => undefined }) {
   const adminToken = await login(apiUrl, USERS.admin);
-  for (const u of [USERS.reviewer, USERS.pm, USERS.technician]) await ensureUser(apiUrl, adminToken, u);
+  for (const u of [USERS.reviewer, USERS.pm, USERS.technician, USERS.viewer]) await ensureUser(apiUrl, adminToken, u);
   const users = await api(apiUrl, adminToken, 'GET', '/users?pageSize=100');
   const tech = users.items.find((u) => u.email === USERS.technician.email);
   const sites = await api(apiUrl, adminToken, 'GET', '/sites?pageSize=50');

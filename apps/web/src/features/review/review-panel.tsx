@@ -125,41 +125,36 @@ export function SnagList({
           const selected = selectedId === s.id;
           return (
             <li key={s.id} data-testid="ai-snag">
-              <div
-                role="button"
-                tabIndex={0}
-                aria-pressed={selected}
-                onClick={() => onSelect(selected ? null : s.id)}
-                onKeyDown={(e) => {
-                  if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                    e.preventDefault();
-                    onSelect(selected ? null : s.id);
-                  }
-                }}
-                className={cn('relative flex cursor-pointer gap-2 overflow-hidden rounded-md border bg-card p-2.5 ps-4', selected && 'ring-2 ring-ring', isRemoved && 'opacity-60')}
-              >
+              <div className={cn('relative flex items-start gap-1 overflow-hidden rounded-md border bg-card ps-1.5', selected && 'ring-2 ring-ring', isRemoved && 'opacity-60')}>
                 <span className={cn('absolute inset-y-0 start-0 w-1.5', isRemoved ? 'bg-muted-foreground' : SEVERITY_BAR[s.severity])} aria-hidden />
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[0.6875rem] font-semibold tabular-nums" aria-hidden>
-                  {i + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className={cn('font-medium leading-snug', isRemoved && 'line-through')}>{titles.primary}</p>
-                  <p className="text-xs text-muted-foreground" lang={locale === 'ar' ? 'en' : 'ar'}>
-                    {titles.secondary}
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                    <SeverityBadge severity={s.severity} />
-                    <span className="ltr-token font-mono text-[0.6875rem] text-muted-foreground">{s.code}</span>
-                    {s.bbox ? <Crosshair className="size-3 text-muted-foreground" aria-label={t('hasBox')} /> : null}
-                  </div>
-                  {isRemoved ? <p className="mt-1 text-xs text-muted-foreground">{t('removedBecause', { reason: removed.get(s.id) ?? '' })}</p> : null}
-                </div>
+                <button
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => onSelect(selected ? null : s.id)}
+                  className="flex min-w-0 flex-1 gap-2 rounded-sm p-2.5 ps-3 text-start"
+                >
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded bg-muted text-[0.6875rem] font-semibold tabular-nums" aria-hidden>
+                    {i + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className={cn('block font-medium leading-snug', isRemoved && 'line-through')}>{titles.primary}</span>
+                    <span className="block text-xs text-muted-foreground" lang={locale === 'ar' ? 'en' : 'ar'}>
+                      {titles.secondary}
+                    </span>
+                    <span className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <SeverityBadge severity={s.severity} />
+                      <span className="ltr-token font-mono text-[0.6875rem] text-muted-foreground">{s.code}</span>
+                      {s.bbox ? <Crosshair className="size-3 text-muted-foreground" aria-label={t('hasBox')} /> : null}
+                    </span>
+                    {isRemoved ? <span className="mt-1 block text-xs text-muted-foreground">{t('removedBecause', { reason: removed.get(s.id) ?? '' })}</span> : null}
+                  </span>
+                </button>
                 {isRemoved ? (
-                  <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onUndoRemove(s.id); }} aria-label={t('undoRemove')}>
+                  <Button variant="ghost" size="icon-sm" className="mt-1.5 me-1.5" onClick={() => onUndoRemove(s.id)} aria-label={t('undoRemove')}>
                     <Undo2 aria-hidden />
                   </Button>
                 ) : (
-                  <Button variant="ghost" size="icon-sm" onClick={(e) => { e.stopPropagation(); onRemove(s); }} aria-label={t('remove')} title={`${t('remove')} (X)`}>
+                  <Button variant="ghost" size="icon-sm" className="mt-1.5 me-1.5" onClick={() => onRemove(s)} aria-label={t('remove')} title={`${t('remove')} (X)`}>
                     <Trash2 aria-hidden />
                   </Button>
                 )}
@@ -224,10 +219,8 @@ export function ChecklistSection({ item, activeCodes }: { item: QueueItem; activ
           return (
             <li key={c.id} className={cn('flex gap-2 px-2.5 py-2 text-[0.8125rem]', hit && 'bg-st-danger-bg/50')}>
               {hit ? <XCircle className="mt-0.5 size-4 shrink-0 text-st-danger-fg" aria-label={t('failing')} /> : <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-muted-foreground/50" aria-label={t('noFinding')} />}
-              <div className="min-w-0">
-                <span className="ltr-token me-1.5 font-mono text-[0.6875rem] text-muted-foreground">{c.id}</span>
-                {locale === 'ar' ? c.textAr : c.textEn}
-              </div>
+              <div className="min-w-0 flex-1">{locale === 'ar' ? c.textAr : c.textEn}</div>
+              <span className="ltr-token shrink-0 self-start font-mono text-[0.6875rem] text-muted-foreground">{c.id}</span>
             </li>
           );
         })}

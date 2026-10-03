@@ -45,6 +45,7 @@
   "devDependencies": {
     "@acceptance/api": "workspace:*",
     "@acceptance/db": "workspace:*",
+    "@axe-core/playwright": "^4.10.0",
     "@playwright/test": "^1.50.0",
     "@tailwindcss/postcss": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.0",

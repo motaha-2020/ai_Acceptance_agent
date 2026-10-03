@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { Pencil, Plus, Search, UserX } from 'lucide-react';
 import { z } from 'zod';
-import { CreateUserRequest, Role, UpdateUserRequest } from '@acceptance/shared';
+import { CreateUserRequest, Role } from '@acceptance/shared';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';

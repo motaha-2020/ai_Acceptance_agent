@@ -6,7 +6,8 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // Docker image: NEXT_STANDALONE=true (needs symlink rights, which Windows dev machines often lack).
+  output: process.env.NEXT_STANDALONE === 'true' ? 'standalone' : undefined,
   transpilePackages: ['@acceptance/shared', '@acceptance/checklist'],
   experimental: { optimizePackageImports: ['lucide-react', 'recharts'] },
   async headers() {

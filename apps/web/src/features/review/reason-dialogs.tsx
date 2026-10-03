@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Kbd } from '@/components/ui/kbd';
-import { SeverityBadge, VerdictBadge } from '@/components/data/status-badges';
+import { VerdictBadge } from '@/components/data/status-badges';
 import type { AppLocale } from '@/i18n/config';
 import type { QueueItem, SnagDto } from '@/lib/api/types';
 import { snagTitles } from '@/lib/taxonomy';

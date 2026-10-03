@@ -11,6 +11,7 @@ export const USERS = {
   reviewer: { email: 'reviewer@acceptance.local', password: 'E2e-Reviewer-Pass-123', name: 'Mona Reviewer', role: 'reviewer' },
   pm: { email: 'pm@acceptance.local', password: 'E2e-Pm-Pass-12345', name: 'Omar PM', role: 'pm' },
   technician: { email: 'tech@acceptance.local', password: 'E2e-Tech-Pass-12345', name: 'Hassan Technician', role: 'technician' },
+  viewer: { email: 'viewer@acceptance.local', password: 'E2e-Viewer-Pass-12345', name: 'Salma Viewer', role: 'viewer' },
 };
 
 export const SECRETS = {
