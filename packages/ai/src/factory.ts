@@ -1,5 +1,6 @@
 import type { AnalysisProvider } from '@acceptance/shared';
 import { CascadeProvider, type CascadePolicy } from './cascade.js';
+import { CategoryClassifier } from './classify.js';
 import { VisionProvider, type CoreOptions, type VendorClient } from './core.js';
 import { fewShotFromEnv } from './fewshot.js';
 import { FEW_SHOT_MANIFEST } from './fewshot-manifest.js';
@@ -42,6 +43,11 @@ export function createVendor(name: ProviderName, options: ProviderOptions = {}):
     case 'fake':
       return new FakeVendor({ ...options.fake, ...(model ? { model } : {}) });
   }
+}
+
+/** Category classifier for bulk uploads (ADR 0005), on the same vendor/model settings as the analysis. */
+export function createClassifier(name: ProviderName, options: ProviderOptions = {}): CategoryClassifier {
+  return new CategoryClassifier(createVendor(name, options), options);
 }
 
 /** One provider by name. API keys come from options or ANTHROPIC_API_KEY / GEMINI_API_KEY / OPENAI_API_KEY. */

@@ -63,7 +63,7 @@ export class GeminiVendor implements VendorClient {
       config: {
         systemInstruction: parts.system,
         responseMimeType: 'application/json',
-        responseJsonSchema: this.schema,
+        responseJsonSchema: req.responseSchema ? toGeminiSchema(req.responseSchema.schema) : this.schema,
         maxOutputTokens: this.opts.maxOutputTokens ?? 8192,
         temperature: this.opts.temperature ?? 0,
         ...(this.opts.thinkingLevel ? { thinkingConfig: { thinkingLevel: this.opts.thinkingLevel.toUpperCase() as ThinkingLevel } } : {}),

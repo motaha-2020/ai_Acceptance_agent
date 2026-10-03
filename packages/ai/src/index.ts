@@ -11,6 +11,7 @@ export * from './fewshot.js';
 export * from './fewshot-manifest.js';
 export * from './core.js';
 export * from './cascade.js';
+export * from './classify.js';
 export * from './factory.js';
 export { ClaudeVendor, CLAUDE_DEFAULT_MODEL, CLAUDE_MODELS, type ClaudeOptions, type ClaudeEffort } from './providers/claude.js';
 export { GeminiVendor, GEMINI_DEFAULT_MODEL, type GeminiOptions } from './providers/gemini.js';

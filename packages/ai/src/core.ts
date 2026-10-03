@@ -12,11 +12,14 @@ import { addUsage, costUsd, DEFAULT_PRICES, totalInputTokens, ZERO_USAGE, type P
 import { buildPromptParts, type FewShotSource, type PromptParts } from './prompt.js';
 import { assessQuality, DEFAULT_QUALITY_THRESHOLDS, type LocalQualityIssue, type QualityReport, type QualityThresholds } from './quality.js';
 import { DEFAULT_RETRY, withRetry, type RetryOptions } from './retry.js';
+import type { JsonSchema } from './schema.js';
 
 export interface VendorRequest {
   parts: PromptParts;
   /** Set on the single repair attempt after an invalid response. */
   repair?: { previousOutput: string; error: string };
+  /** Vendor-neutral output schema for tasks other than the photo analysis (e.g. category classification). */
+  responseSchema?: { name: string; schema: JsonSchema };
 }
 
 export interface VendorReply {

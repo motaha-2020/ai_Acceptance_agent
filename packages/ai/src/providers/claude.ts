@@ -85,7 +85,7 @@ export class ClaudeVendor implements VendorClient {
       system: [{ type: 'text', text: parts.system, cache_control: ephemeral }],
       messages,
       output_config: {
-        format: { type: 'json_schema', schema: this.schema },
+        format: { type: 'json_schema', schema: req.responseSchema ? toClaudeSchema(req.responseSchema.schema) : this.schema },
         ...(supportsEffort(this.model) ? { effort: this.opts.effort ?? 'medium' } : {}),
       },
       ...(fallback ? { betas: [FALLBACK_BETA], fallbacks: 'default' as const } : {}),

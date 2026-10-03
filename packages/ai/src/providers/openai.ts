@@ -64,7 +64,7 @@ export class OpenAIVendor implements VendorClient {
       model: this.model,
       instructions: parts.system,
       input,
-      text: { format: { type: 'json_schema', name: 'analysis_result', schema: this.schema, strict: true } },
+      text: { format: { type: 'json_schema', name: req.responseSchema?.name ?? 'analysis_result', schema: req.responseSchema ? toOpenAISchema(req.responseSchema.schema) : this.schema, strict: true } },
       max_output_tokens: this.opts.maxOutputTokens ?? 8192,
       prompt_cache_key: `acceptance-${parts.promptVersion}`.slice(0, 64),
       store: false,
