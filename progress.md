@@ -45,12 +45,12 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P4 Web
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T4.1 | Design system + i18n/RTL | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
-| T4.2 | Auth + admin (users/roles) | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
-| T4.3 | Review queue UI | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
-| T4.4 | Sites/projects/snag tracker | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
-| T4.5 | AI accuracy dashboard | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
-| T4.6 | Report UI | Frontend Developer (sonnet) | review | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.1 | Design system + i18n/RTL | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.2 | Auth + admin (users/roles) | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.3 | Review queue UI | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.4 | Sites/projects/snag tracker | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.5 | AI accuracy dashboard | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
+| T4.6 | Report UI | Frontend Developer (sonnet) | done | 2026-10-03 apps/web: 39 vitest + 29 Playwright e2e (real API, embedded PG) pass, axe a11y clean; see apps/web/README.md. Gaps: no list sort param, no site-progress/trend/app-release/report endpoints (client-side fallbacks) |
 
 ## P5 Mobile
 | ID | Task | Owner | Status | Notes |
