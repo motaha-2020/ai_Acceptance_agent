@@ -17,3 +17,5 @@ allowBuilds:
   msgpackr-extract: false
   protobufjs: false
   "@google/genai": false
+  "@parcel/watcher": false
+  "@swc/core": false
