@@ -24,13 +24,13 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P2 Backend
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T2.1 | Prisma schema + migrations | Backend Architect | todo | |
-| T2.2 | Auth + RBAC + user mgmt | Backend Architect | todo | |
-| T2.3 | Projects/sites/devices/visits APIs | Backend Architect | todo | |
-| T2.4 | Photo upload (resumable, sharp, MinIO) | Backend Architect | todo | |
-| T2.5 | Queue + worker skeleton | Backend Architect | todo | |
-| T2.6 | Snag/review APIs | Backend Architect | todo | |
-| T2.7 | Audit log | Backend Architect | todo | |
+| T2.1 | Prisma schema + migrations | Backend Architect (opus) | review | 2026-10-03 packages/db: Prisma schema (domain + Review/AuditLog append-only triggers, AutonomyPolicy, Report/BOM/AppRelease stubs), 2 migrations, idempotent seed (admin, roles+permissions, NASR3 from data/sites + 3 demo sites, 20 checklists, policies disabled), embedded PG16 for dev/tests; 5 tests |
+| T2.2 | Auth + RBAC + user mgmt | Backend Architect (opus) | review | 2026-10-03 argon2id, 15-min JWT + rotating hashed refresh tokens w/ family revocation on reuse, login rate limit, admin user CRUD/deactivate, CASL from shared PERMISSION_MATRIX + row scope (technician=assigned visits); RBAC matrix + auth tests |
+| T2.3 | Projects/sites/devices/visits APIs | Backend Architect (opus) | review | 2026-10-03 projects/sites/devices/visits CRUD + filter/paginate, soft delete, visit status machine, technician assignment; zod contracts in packages/shared/src/api.ts |
+| T2.4 | Photo upload (resumable, sharp, MinIO) | Backend Architect (opus) | review | 2026-10-03 multipart upload idempotent per clientUuid (incl. concurrent retries), sha256 content-addressed storage + dup flag, decode-validated jpeg/png/webp, EXIF, thumb/web via sharp, signed URLs (S3 presign / HMAC local), ADR 0002 (single request, no tus) |
+| T2.5 | Queue + worker skeleton | Backend Architect (opus) | review | 2026-10-03 packages/queue (BullMQ + in-process), apps/worker analyze-photo: provider registry (fake built in; register @acceptance/ai adapters in composition root), zod-validated result, retries/backoff, daily budget guard, Phase-1 HumanReviewGate + PolicyAutonomyGate hook; embedded in API when no REDIS_URL; 6 tests |
+| T2.6 | Snag/review APIs | Backend Architect (opus) | review | 2026-10-03 FIFO review queue, agree/override/add_snag reviews (immutable labels, dismissed AI snags kept), approve/reject (always leave a label), snag open->fixed->verified rolled up to photo, GET /metrics/agreement per category vs AutonomyPolicy |
+| T2.7 | Audit log | Backend Architect (opus) | review | 2026-10-03 global audit interceptor: every mutation (incl. failures) with actor, entity, before/after (redacted), status, requestId; GET /audit-logs; DB-level append-only |
 
 ## P3 AI
 | ID | Task | Owner | Status | Notes |

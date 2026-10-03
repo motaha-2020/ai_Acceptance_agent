@@ -20,10 +20,10 @@
     "build": "prisma generate && tsc -p tsconfig.json",
     "typecheck": "prisma generate && tsc -p tsconfig.test.json",
     "test": "vitest run",
-    "db:dev": "node dist/cli/dev-postgres.js",
-    "db:migrate": "prisma migrate deploy",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:seed": "node dist/cli/seed.js"
+    "db:dev": "node --env-file-if-exists=../../.env dist/cli/dev-postgres.js",
+    "db:migrate": "node --env-file-if-exists=../../.env node_modules/prisma/build/index.js migrate deploy",
+    "db:migrate:dev": "node --env-file-if-exists=../../.env node_modules/prisma/build/index.js migrate dev",
+    "db:seed": "node --env-file-if-exists=../../.env dist/cli/seed.js"
   },
   "dependencies": {
     "@acceptance/checklist": "workspace:*",
