@@ -66,6 +66,8 @@ export const PERMISSION_MATRIX: Record<Role, PermissionRule[]> = {
     { action: 'read', subject: 'User' },
     { action: 'review', subject: 'Photo' },
     { action: 'approve', subject: 'Photo' },
+    // Bulk upload of photos into any open visit (ADR 0005, owner decision 2026-10-03).
+    { action: 'upload', subject: 'Visit' },
     { action: ['create', 'update'], subject: 'Snag' },
     { action: 'verify', subject: 'Snag' },
     { action: 'create', subject: 'Report' },

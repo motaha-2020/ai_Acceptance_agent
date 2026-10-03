@@ -19,7 +19,7 @@ const MATRIX: [Action, AppSubject, Role[]][] = [
   ['create', 'Visit', ['admin', 'pm', 'engineer']],
   ['assign', 'Visit', ['admin', 'pm', 'engineer']],
   ['update', 'Visit', ['admin', 'pm', 'engineer', 'technician']],
-  ['upload', 'Visit', ['admin', 'engineer', 'technician']],
+  ['upload', 'Visit', ['admin', 'reviewer', 'engineer', 'technician']],
   ['read', 'Photo', ['admin', 'pm', 'reviewer', 'engineer', 'technician', 'viewer']],
   ['review', 'Photo', ['admin', 'reviewer']],
   ['approve', 'Photo', ['admin', 'pm', 'reviewer']],
