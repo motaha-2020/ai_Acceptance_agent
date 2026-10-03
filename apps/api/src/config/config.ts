@@ -38,6 +38,15 @@ export const ApiEnv = WorkerEnv.extend({
   UPLOAD_MAX_BYTES: z.coerce.number().int().min(1024).max(100 * 1024 * 1024).default(25 * 1024 * 1024),
   SIGNED_URL_TTL_SECONDS: z.coerce.number().int().min(30).max(7 * 24 * 3600).default(900),
 
+  /** PEM private key that signs OTA manifests (expo-updates code signing). Unset = unsigned (dev only). */
+  OTA_PRIVATE_KEY_PATH: z.string().optional(),
+  /** keyid the app's embedded certificate metadata expects. */
+  OTA_KEY_ID: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/).default('main'),
+  /** Lifetime of the signed asset URLs inside a manifest (the device downloads right after the check). */
+  OTA_ASSET_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(7 * 24 * 3600).default(3600),
+  /** Lifetime of the signed APK URL the stable download link redirects to. */
+  APK_URL_TTL_SECONDS: z.coerce.number().int().min(60).max(24 * 3600).default(900),
+
   STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
   STORAGE_LOCAL_DIR: z.string().default('.data/storage'),
   STORAGE_PUBLIC_BASE_URL: z.string().url().optional(),

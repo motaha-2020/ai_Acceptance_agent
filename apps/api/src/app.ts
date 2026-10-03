@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swag
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
 import type { Logger } from 'pino';
+import { AppReleasesModule } from './app-releases/app-releases.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import type { AppConfig } from './config/config.js';
@@ -43,6 +44,7 @@ export class AppModule {
         SnagsModule,
         MetricsModule,
         HealthModule,
+        AppReleasesModule,
         EmbeddedWorkerModule,
       ],
       providers: [{ provide: APP_FILTER, useClass: GlobalErrorFilter }],

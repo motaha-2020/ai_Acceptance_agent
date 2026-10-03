@@ -76,6 +76,8 @@ export class AuditService {
         return this.prisma.photo.findUnique({ where: { id }, omit: { exif: true } });
       case 'Snag':
         return this.prisma.snag.findUnique({ where: { id } });
+      case 'AppRelease':
+        return this.prisma.appRelease.findUnique({ where: { id } });
       default:
         return null;
     }

@@ -2,7 +2,7 @@ import { SetMetadata } from '@nestjs/common';
 
 export const AUDIT = 'audit:meta';
 
-export type AuditEntity = 'User' | 'Project' | 'Site' | 'Device' | 'Visit' | 'Photo' | 'Snag' | 'Review' | 'Auth';
+export type AuditEntity = 'User' | 'Project' | 'Site' | 'Device' | 'Visit' | 'Photo' | 'Snag' | 'Review' | 'Auth' | 'AppRelease' | 'OtaUpdate';
 
 export interface AuditMeta {
   entity: AuditEntity;

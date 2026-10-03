@@ -194,6 +194,8 @@ model User {
   snagsDismissed     Snag[]            @relation("SnagDismisser")
   reports            Report[]
   releases           AppRelease[]
+  otaUpdates         OtaUpdate[]       @relation("OtaUpdateCreator")
+  otaHeads           OtaChannelHead[]  @relation("OtaHeadUpdater")
   autonomyPolicyEdit AutonomyPolicy[]
 
   @@index([roleId])
@@ -329,30 +331,30 @@ model VisitAssignment {
 }
 
 model ChecklistTemplate {
-  id              String          @id @default(cuid())
-  category        PhotoCategory
+  id        String          @id @default(cuid())
+  category  PhotoCategory
   /// Checklist version (from @acceptance/checklist TAXONOMY_VERSION).
-  version         String
-  titleEn         String
-  titleAr         String
-  createdAt       DateTime        @default(now()) @db.Timestamptz(3)
-  items           ChecklistItem[]
+  version   String
+  titleEn   String
+  titleAr   String
+  createdAt DateTime        @default(now()) @db.Timestamptz(3)
+  items     ChecklistItem[]
 
   @@unique([category, version])
   @@map("checklist_templates")
 }
 
 model ChecklistItem {
-  id         String            @id @default(cuid())
-  templateId String
-  template   ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  id          String            @id @default(cuid())
+  templateId  String
+  template    ChecklistTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
   /// Criterion id, e.g. RACK-01.
-  code       String
-  textEn     String
-  textAr     String
+  code        String
+  textEn      String
+  textAr      String
   guardsCodes String[]
-  sidRef     String?
-  position   Int
+  sidRef      String?
+  position    Int
 
   @@unique([templateId, code])
   @@map("checklist_items")
@@ -418,10 +420,10 @@ model Photo {
   rejectionReason String?
   updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
-  analyses  Analysis[]
-  snags     Snag[]     @relation("SnagPhoto")
-  fixSnags  Snag[]     @relation("SnagFixPhoto")
-  reviews   Review[]
+  analyses Analysis[]
+  snags    Snag[]     @relation("SnagPhoto")
+  fixSnags Snag[]     @relation("SnagFixPhoto")
+  reviews  Review[]
 
   @@index([status, category, uploadedAt])
   @@index([siteId])
@@ -433,27 +435,27 @@ model Photo {
 // ───────────────────────────── AI & review ─────────────────────────────
 
 model Analysis {
-  id                String         @id @default(cuid())
-  photoId           String
-  photo             Photo          @relation(fields: [photoId], references: [id])
-  status            AnalysisStatus
-  provider          String
-  model             String
-  promptVersion     String
-  verdict           Verdict?
-  confidence        Float?
-  categoryMatches   Boolean?
-  detectedCategory  PhotoCategory?
-  qualityIssues     String[]
-  inputTokens       Int?
-  outputTokens      Int?
-  costUsd           Decimal?       @db.Decimal(12, 6)
-  latencyMs         Int?
-  attempt           Int            @default(1)
-  error             String?
+  id               String         @id @default(cuid())
+  photoId          String
+  photo            Photo          @relation(fields: [photoId], references: [id])
+  status           AnalysisStatus
+  provider         String
+  model            String
+  promptVersion    String
+  verdict          Verdict?
+  confidence       Float?
+  categoryMatches  Boolean?
+  detectedCategory PhotoCategory?
+  qualityIssues    String[]
+  inputTokens      Int?
+  outputTokens     Int?
+  costUsd          Decimal?       @db.Decimal(12, 6)
+  latencyMs        Int?
+  attempt          Int            @default(1)
+  error            String?
   /// Raw provider result (validated or not) kept for audits and re-scoring.
-  raw               Json?
-  createdAt         DateTime       @default(now()) @db.Timestamptz(3)
+  raw              Json?
+  createdAt        DateTime       @default(now()) @db.Timestamptz(3)
 
   snags   Snag[]
   reviews Review[]
@@ -506,25 +508,25 @@ model Snag {
 /// Human decision on a photo (and optionally a snag). These rows are the training labels
 /// for Phase 2: append-only (DB trigger), never edited or deleted. Re-reviews add new rows.
 model Review {
-  id          String         @id @default(cuid())
-  photoId     String
-  photo       Photo          @relation(fields: [photoId], references: [id])
-  reviewerId  String
-  reviewer    User           @relation(fields: [reviewerId], references: [id])
-  analysisId  String?
-  analysis    Analysis?      @relation(fields: [analysisId], references: [id])
-  snagId      String?
-  snag        Snag?          @relation(fields: [snagId], references: [id])
-  decision    ReviewDecision
+  id         String         @id @default(cuid())
+  photoId    String
+  photo      Photo          @relation(fields: [photoId], references: [id])
+  reviewerId String
+  reviewer   User           @relation(fields: [reviewerId], references: [id])
+  analysisId String?
+  analysis   Analysis?      @relation(fields: [analysisId], references: [id])
+  snagId     String?
+  snag       Snag?          @relation(fields: [snagId], references: [id])
+  decision   ReviewDecision
   /// Final human verdict for the photo.
-  verdict     Verdict
+  verdict    Verdict
   /// AI verdict at review time (denormalised for agreement metrics).
-  aiVerdict   Verdict?
-  category    PhotoCategory
-  reason      String?
+  aiVerdict  Verdict?
+  category   PhotoCategory
+  reason     String?
   /// {addedSnagIds, removedSnagIds, addedCodes, removedCodes, keptCodes}
-  payload     Json?
-  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  payload    Json?
+  createdAt  DateTime       @default(now()) @db.Timestamptz(3)
 
   @@index([photoId, createdAt])
   @@index([category, createdAt])
@@ -625,23 +627,77 @@ model AuditLog {
   @@map("audit_logs")
 }
 
-/// Mobile app release (stub for OTA / APK distribution, tasks T5.6-T5.9).
+/// Native mobile build (APK) published for download from the web portal (T5.5/T5.6).
+/// "Latest" = newest published row per channel/platform by versionCode; unpublishing rolls back.
 model AppRelease {
-  id             String         @id @default(cuid())
-  version        String
-  channel        ReleaseChannel
-  runtimeVersion String
-  apkKey         String?
-  bundleKey      String?
-  /// Oldest app version still allowed to talk to the API.
-  minSupported   String
-  notes          String?
-  isCritical     Boolean        @default(false)
-  publishedAt    DateTime?      @db.Timestamptz(3)
-  createdById    String?
-  createdBy      User?          @relation(fields: [createdById], references: [id])
-  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  id                      String         @id @default(cuid())
+  platform                String         @default("android")
+  version                 String
+  /// Android versionCode; strictly increasing per platform.
+  versionCode             Int            @default(0)
+  channel                 ReleaseChannel
+  /// expo-updates runtime version of this build (OTA bundles must match it).
+  runtimeVersion          String
+  apkKey                  String?
+  apkSha256               String?
+  apkSizeBytes            Int?
+  bundleKey               String?
+  /// Oldest app version still allowed to talk to the API (display form of minSupportedVersionCode).
+  minSupported            String
+  /// Builds with a lower versionCode are blocked by the app (forced update, T5.8).
+  minSupportedVersionCode Int            @default(1)
+  notes                   String?
+  isCritical              Boolean        @default(false)
+  publishedAt             DateTime?      @db.Timestamptz(3)
+  createdById             String?
+  createdBy               User?          @relation(fields: [createdById], references: [id])
+  createdAt               DateTime       @default(now()) @db.Timestamptz(3)
 
   @@unique([version, channel])
+  @@unique([platform, channel, versionCode])
   @@map("app_releases")
+}
+
+/// One over-the-air JS update (expo-updates protocol), exported by publish-ota.sh (T5.7).
+/// Rows are immutable; which update a channel serves is decided by OtaChannelHead.
+model OtaUpdate {
+  /// Manifest id (UUID) the device stores; never reused.
+  id             String         @id @db.Uuid
+  channel        ReleaseChannel
+  platform       String         @default("android")
+  runtimeVersion String
+  message        String?
+  isCritical     Boolean        @default(false)
+  /// {key, hash, contentType, fileExtension?, storageKey}
+  launchAsset    Json
+  /// [{key, hash, contentType, fileExtension, storageKey}]
+  assets         Json
+  /// Public app config served as manifest.extra.expoClient.
+  expoClient     Json?
+  gitCommit      String?
+  createdById    String?
+  createdBy      User?          @relation("OtaUpdateCreator", fields: [createdById], references: [id])
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+
+  heads OtaChannelHead[]
+
+  @@index([channel, platform, runtimeVersion, createdAt])
+  @@map("ota_updates")
+}
+
+/// What a channel serves for one runtime version: an update, or "roll back to the embedded bundle".
+/// Publishing moves the head forward; rollback points it to an earlier update.
+model OtaChannelHead {
+  channel            ReleaseChannel
+  platform           String
+  runtimeVersion     String
+  updateId           String?        @db.Uuid
+  update             OtaUpdate?     @relation(fields: [updateId], references: [id])
+  rollBackToEmbedded Boolean        @default(false)
+  updatedById        String?
+  updatedBy          User?          @relation("OtaHeadUpdater", fields: [updatedById], references: [id])
+  updatedAt          DateTime       @updatedAt @db.Timestamptz(3)
+
+  @@id([channel, platform, runtimeVersion])
+  @@map("ota_channel_heads")
 }
