@@ -56,6 +56,22 @@ export async function apiFetch<T>(path: string, opts: RequestOptions = {}): Prom
     if ((err as { name?: string }).name === 'AbortError') throw err;
     throw new ApiRequestError(0, 'NETWORK', 'Network error');
   }
+  return readResponse<T>(res);
+}
+
+/** Multipart POST through the BFF (photo uploads); same error handling as apiFetch. */
+export async function apiUpload<T>(path: string, form: FormData, signal?: AbortSignal): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/proxy${path.startsWith('/') ? path : `/${path}`}`, { method: 'POST', body: form, signal, credentials: 'same-origin' });
+  } catch (err) {
+    if ((err as { name?: string }).name === 'AbortError') throw err;
+    throw new ApiRequestError(0, 'NETWORK', 'Network error');
+  }
+  return readResponse<T>(res);
+}
+
+async function readResponse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
   const text = await res.text();
   let json: unknown = null;

@@ -46,6 +46,18 @@ describe('bulk upload with AI-proposed categories (ADR 0005)', () => {
     expect(await h.prisma.analysis.count({ where: { photoId: { in: photoIds } } })).toBe(0);
   });
 
+  it('a photo dropped again in a new batch before confirmation moves to that batch', async () => {
+    const batch2 = randomUUID();
+    const res = await h.upload(
+      admin,
+      { clientUuid: randomUUID(), visitId: ids.visitId, category: 'duct', captureSource: 'web_bulk', uploadBatchId: batch2, autoCategory: true },
+      await jpeg(900),
+    );
+    expect(res.status).toBe(200);
+    expect(res.json<{ duplicate: string; photo: Photo }>()).toMatchObject({ duplicate: 'content', photo: { id: photoIds[0], uploadBatchId: batch2 } });
+    await h.prisma.photo.update({ where: { id: photoIds[0] }, data: { uploadBatchId: batch } });
+  });
+
   it('refuses autoCategory for live captures and re-shots', async () => {
     const res = await h.upload(tech.token, { clientUuid: randomUUID(), visitId: ids.visitId, category: 'rack', autoCategory: true });
     expect(res.status).toBe(400);

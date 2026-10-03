@@ -80,6 +80,11 @@ export class PhotosService {
     const sameContent = await this.prisma.photo.findFirst({ where: { sha256: img.sha256 }, orderBy: { uploadedAt: 'asc' } });
     // A bulk upload's category is only a guess, so identical bytes in the same visit are the same photo.
     if (sameContent && sameContent.visitId === visit.id && (meta.autoCategory || sameContent.category === meta.category)) {
+      // Re-dropped in a new bulk batch before its category was confirmed: show it in that batch's confirm list.
+      if (meta.autoCategory && meta.uploadBatchId && sameContent.categoryState !== 'confirmed' && sameContent.uploadBatchId !== meta.uploadBatchId) {
+        const moved = await this.prisma.photo.update({ where: { id: sameContent.id }, data: { uploadBatchId: meta.uploadBatchId } });
+        return { photo: await this.presenter.present(moved), created: false, duplicate: 'content' };
+      }
       return { photo: await this.presenter.present(sameContent), created: false, duplicate: 'content' };
     }
 

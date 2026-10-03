@@ -1,4 +1,4 @@
-import { BarChart3, Building2, FileText, FolderTree, ListChecks, Smartphone, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
+import { BarChart3, Building2, FileText, FolderTree, ImageUp, ListChecks, Smartphone, TriangleAlert, Users, type LucideIcon } from 'lucide-react';
 import type { Action, Subject } from '@acceptance/shared';
 
 export interface NavItem {
@@ -14,6 +14,7 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: '/review', label: 'review', icon: ListChecks, needs: { action: 'review', subject: 'Photo' }, group: 'work' },
   { href: '/sites', label: 'sites', icon: Building2, needs: { action: 'read', subject: 'Site' }, group: 'work' },
+  { href: '/upload', label: 'upload', icon: ImageUp, needs: { action: 'upload', subject: 'Visit' }, group: 'work' },
   { href: '/snags', label: 'snags', icon: TriangleAlert, needs: { action: 'read', subject: 'Snag' }, group: 'work' },
   { href: '/accuracy', label: 'accuracy', icon: BarChart3, needs: { action: 'read', subject: 'Metrics' }, group: 'insight' },
   { href: '/reports', label: 'reports', icon: FileText, needs: { action: 'read', subject: 'Report' }, group: 'insight' },

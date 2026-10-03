@@ -257,6 +257,11 @@ export function MetadataSection({ item, technicianName }: { item: QueueItem; tec
         <Meta label={t('technician')}>{technicianName ?? '—'}</Meta>
         <Meta label={t('captured')}>{formatDateTime(item.capturedAt, locale)}</Meta>
         <Meta label={t('uploaded')}>{formatDateTime(item.uploadedAt, locale)}</Meta>
+        <Meta label={t('source')}>
+          {/* Bulk/gallery photos are not proof of a live site visit (ADR 0005). */}
+          <Badge tone={item.captureSource === 'camera' ? 'neutral' : 'warning'}>{t(`sources.${item.captureSource}`)}</Badge>
+          {item.fileName ? <span className="ms-2 text-xs text-muted-foreground ltr-token">{item.fileName.split(/[\/]/).pop()}</span> : null}
+        </Meta>
         <Meta label={t('gps')}>
           {item.gps ? (
             <a

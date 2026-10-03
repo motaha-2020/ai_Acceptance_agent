@@ -45,7 +45,8 @@
     "reports": "Reports",
     "users": "Users",
     "projects": "Projects & sites",
-    "app": "Mobile app"
+    "app": "Mobile app",
+    "upload": "Bulk upload"
   },
   "topbar": {
     "switchLanguage": "Switch language",
@@ -211,6 +212,8 @@
       "technician": "Technician",
       "captured": "Captured",
       "uploaded": "Uploaded",
+      "source": "Source",
+      "sources": { "camera": "Field app camera", "web_bulk": "Bulk upload (web)", "app_gallery": "Phone gallery" },
       "gps": "GPS",
       "noGps": "No GPS",
       "phone": "Phone",
@@ -515,5 +518,40 @@
       "deleteBody": "The device record is removed from the site.",
       "empty": "No devices"
     }
+  },
+  "bulkUpload": {
+    "title": "Bulk upload",
+    "description": "Upload many photos at once. The AI proposes each photo's category, you confirm, then every photo is analysed and goes to the review queue.",
+    "step1": "1. Where do the photos belong?",
+    "step1Hint": "Photos are added to an open visit of the site.",
+    "site": "Site",
+    "visit": "Visit",
+    "choose": "Choose…",
+    "noOpenVisits": "No open visit: create one on the site page",
+    "fallback": "Default category",
+    "step2": "2. Photos",
+    "step2Hint": "Pick photos or a whole folder. Folder names like \"ODF Tie\" or \"Power Path\" are used as hints.",
+    "pickFiles": "Choose photos",
+    "pickFolder": "Choose folder",
+    "upload": "Upload {count} photos",
+    "retryFailed": "Retry failed",
+    "newBatch": "New batch",
+    "progress": "{uploaded} of {total} uploaded{failed, plural, =0 {} other {, # failed}}",
+    "step3": "3. Confirm categories",
+    "step3Hint": "Least certain first. Correct a category if needed; nothing is analysed before you confirm.",
+    "confirmSelected": "Confirm selected ({count})",
+    "confirmAll": "Confirm all ({count})",
+    "confirmed": "{count} photos confirmed and sent for analysis",
+    "classifying": "The AI is still sorting {count} photos…",
+    "allConfirmed": "All {count} photos are confirmed and being analysed.",
+    "openReview": "Open the review queue",
+    "selectAll": "Select all",
+    "photo": "Photo",
+    "file": "File",
+    "category": "Category",
+    "confidence": "AI confidence",
+    "aiThinking": "AI sorting…",
+    "noProposal": "Choose manually",
+    "orAlternative": "or {category}?"
   }
 }

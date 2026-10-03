@@ -165,4 +165,10 @@ describe('ReviewWorkspace', () => {
     expect(row).toHaveTextContent(/label/i); // English secondary + code
     expect(screen.getByTestId('agree')).toHaveTextContent('موافقة');
   });
+
+  it('shows reviewers when a photo came from a bulk upload rather than the field camera', async () => {
+    setup([makeItem('p1', { captureSource: 'web_bulk', fileName: 'site-a/PDU/pdu (1).jpeg' })], [], { locale: 'en' });
+    expect(await screen.findByText('Bulk upload (web)')).toBeInTheDocument();
+    expect(screen.getByText('pdu (1).jpeg')).toBeInTheDocument();
+  });
 });

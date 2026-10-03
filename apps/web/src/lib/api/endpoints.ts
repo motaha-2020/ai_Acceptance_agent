@@ -4,6 +4,7 @@ import type {
   CreateProjectRequest,
   CreateSiteRequest,
   CreateUserRequest,
+  ConfirmCategoriesRequest,
   CreateVisitRequest,
   FixSnagRequest,
   ListDevicesQuery,
@@ -20,8 +21,9 @@ import type {
   UpdateProjectRequest,
   UpdateSiteRequest,
   UpdateUserRequest,
+  UploadPhotoMetadata,
 } from '@acceptance/shared';
-import { ApiRequestError, apiFetch } from './client';
+import { ApiRequestError, apiFetch, apiUpload } from './client';
 import type {
   AgreementMetricsDto,
   AppReleaseDto,
@@ -75,6 +77,16 @@ export const unassignTechnician = (visitId: string, userId: string): Promise<Vis
 
 // ───────────── photos & review ─────────────
 export const listPhotos = (q: In<typeof ListPhotosQuery> = {}): Promise<Paginated<PhotoDto>> => apiFetch('/photos', { query: q });
+
+/** One photo (multipart). Idempotent per metadata.clientUuid, so a retry after a network error is safe. */
+export function uploadPhoto(file: Blob, metadata: z.input<typeof UploadPhotoMetadata>, signal?: AbortSignal): Promise<{ photo: PhotoDto; created: boolean; duplicate?: 'client_uuid' | 'content' }> {
+  const form = new FormData();
+  form.set('metadata', JSON.stringify(metadata));
+  form.set('file', file);
+  return apiUpload('/photos', form, signal);
+}
+export const confirmCategories = (items: ConfirmCategoriesRequest['items']): Promise<{ confirmed: number; skipped: number }> =>
+  apiFetch('/photos/confirm-categories', { method: 'POST', body: { items } });
 export const getPhoto = (id: string): Promise<PhotoDetail> => apiFetch(`/photos/${id}`);
 
 export const getReviewQueue = (q: In<typeof ReviewQueueQuery> = {}): Promise<Paginated<QueueItem>> => apiFetch('/reviews/queue', { query: q });

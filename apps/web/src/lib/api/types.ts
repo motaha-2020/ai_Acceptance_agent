@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import type {
   BBox,
+  CaptureSource,
+  CategoryState,
   PhotoCategory,
   PhotoStatus,
   Role,
@@ -29,6 +31,8 @@ export type PhotoStatusDto = z.infer<typeof PhotoStatus>;
 export type RoleDto = z.infer<typeof Role>;
 export type VisitStatusDto = z.infer<typeof VisitStatus>;
 export type VisitTypeDto = z.infer<typeof VisitType>;
+export type CaptureSourceDto = z.infer<typeof CaptureSource>;
+export type CategoryStateDto = z.infer<typeof CategoryState>;
 
 export interface Me {
   id: string;
@@ -136,6 +140,13 @@ export interface PhotoDto {
   decidedAt: string | null;
   rejectionReason: string | null;
   updatedAt: string;
+  captureSource: CaptureSourceDto;
+  uploadBatchId: string | null;
+  fileName: string | null;
+  categoryState: CategoryStateDto;
+  proposedCategory: PhotoCategoryDto | null;
+  proposedAlternative: PhotoCategoryDto | null;
+  categoryConfidence: number | null;
   gps: { lat: number; lng: number; accuracy: number | null } | null;
   urls: PhotoUrls;
 }
