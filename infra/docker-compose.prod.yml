@@ -113,7 +113,12 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Curated few-shot reference images (customer photos, not in git), uploaded to
+      # /opt/acceptance/ai-fewshot/<manifest version>/<sha256>.jpg; empty = analyse without examples.
+      AI_FEWSHOT_DIR: ${AI_FEWSHOT_DIR:-}
       NODE_OPTIONS: --max-old-space-size=768
+    volumes:
+      - /opt/acceptance/ai-fewshot:/fewshot:ro
     # data: postgres/redis/minio; egress: outbound HTTPS to the AI vendors.
     networks: [data, egress]
     read_only: true
