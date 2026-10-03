@@ -70,6 +70,7 @@ server_main() {
   cd "$ACC_APP"
 
   bash infra/scripts/init-secrets.sh
+  bash infra/scripts/init-ota-key.sh
   local previous=""
   [ -f "$ACC_RELEASE_ENV" ] && previous="$(grep -E '^APP_VERSION=' "$ACC_RELEASE_ENV" | cut -d= -f2-)"
 

@@ -15,3 +15,5 @@ coverage/
 *SSH*.txt
 *.pem
 *.key
+# public OTA code-signing certificate (embedded in the app; the private key stays on the server)
+!apps/mobile/certs/ota-certificate.pem

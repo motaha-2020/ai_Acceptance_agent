@@ -83,7 +83,11 @@ services:
       EMBEDDED_WORKER: "false"
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?}
       STORAGE_SIGNING_SECRET: ${STORAGE_SIGNING_SECRET:?}
+      # OTA manifest signing key (infra/scripts/init-ota-key.sh); never baked into the image.
+      OTA_PRIVATE_KEY_PATH: /run/secrets/ota-private-key.pem
       NODE_OPTIONS: --max-old-space-size=768
+    volumes:
+      - /opt/acceptance/secrets/ota/private-key.pem:/run/secrets/ota-private-key.pem:ro
     networks: [edge, data]
     read_only: true
     tmpfs: [/tmp]
