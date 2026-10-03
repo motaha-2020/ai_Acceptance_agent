@@ -35,12 +35,12 @@ Rule: set your row to `doing` (owner + branch) before starting; orchestrator mar
 ## P3 AI
 | ID | Task | Owner | Status | Notes |
 |---|---|---|---|---|
-| T3.1 | AnalysisProvider + adapters (Claude/Gemini/OpenAI) | AI Engineer | todo | |
-| T3.2 | Category verification + quality gates | AI Engineer | todo | |
+| T3.1 | AnalysisProvider + adapters (Claude/Gemini/OpenAI) | AI Engineer (opus) | review | packages/ai: Claude/Gemini/OpenAI adapters over a shared core (strict JSON schema from zod, zod re-validation + 1 repair, retry/backoff, prompt caching, 1568px downscale, cost via src/pricing.ts = unverified config), createProvider + CascadeProvider (default gemini-3.8-flash -> claude-sonnet-5-5 at conf<0.7/uncertain/wrong-category); few-shot via provider option; shared contract unchanged; 53 tests pass offline (recorded HTTP) |
+| T3.2 | Category verification + quality gates | AI Engineer (opus) | review | local blur (Laplacian var) + dark (mean luma) gate, modes hint/short_circuit/off, thresholds calibrated on 899 real photos (flags none of the accepted set); PERSON_IN_FRAME/WRONG_CATEGORY photo-gate block in cached prefix; short_circuit off until validated on reviewer rejections |
 | T3.3 | Per-category prompts + few-shot | AI Engineer | todo | |
-| T3.4 | Eval harness + metrics | AI Engineer | todo | |
+| T3.4 | Eval harness + metrics | AI Engineer (opus) | review | packages/ai/eval: dataset (snag seed via matchReviewerRemark + inferred category; assumed-good stratified, sha256-dedup, few-shot/eval splits disjoint by sha256), per-code P/R, accuracy, confusion, catch/false-accept/uncertain rates, latency, cost; jsonl+md outputs; compare command; --dry-run fake provider |
 | T3.5 | Prompt tuning loop | AI Engineer | todo | |
-| T3.6 | Provider bake-off (cost/accuracy) | AI Engineer | todo | needs API keys |
+| T3.6 | Provider bake-off (cost/accuracy) | AI Engineer (opus) | blocked | waiting for API keys; run: put keys in .env, then `pnpm --filter @acceptance/ai eval --provider gemini --model gemini-3.8-flash --limit 150 --concurrency 4` (repeat for gemini-3.1-flash-lite, claude-haiku-4-5, claude-sonnet-5-5, claude-opus-5-5 --concurrency 2, openai gpt-6.1-sol), `pnpm --filter @acceptance/ai eval --provider cascade --cascade gemini:gemini-3.8-flash,claude:claude-sonnet-5-5 --min-confidence 0.7 --limit 150 --concurrency 4`, then `pnpm --filter @acceptance/ai eval:compare --last 7` (see packages/ai/README.md) |
 
 ## P4 Web
 | ID | Task | Owner | Status | Notes |

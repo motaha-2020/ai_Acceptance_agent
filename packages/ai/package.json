@@ -1,0 +1,38 @@
+{
+  "name": "@acceptance/ai",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "eval": "tsx eval/cli.ts run",
+    "eval:compare": "tsx eval/cli.ts compare",
+    "quality:stats": "tsx scripts/quality-stats.ts"
+  },
+  "dependencies": {
+    "@acceptance/checklist": "workspace:*",
+    "@acceptance/shared": "workspace:*",
+    "@anthropic-ai/sdk": "^0.131.0",
+    "@google/genai": "^2.26.0",
+    "openai": "^7.27.0",
+    "sharp": "^0.35.5",
+    "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.25.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
