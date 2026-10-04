@@ -1,6 +1,6 @@
 export const LOCALES = ['ar', 'en'] as const;
 export type AppLocale = (typeof LOCALES)[number];
-export const DEFAULT_LOCALE: AppLocale = 'ar';
+export const DEFAULT_LOCALE: AppLocale = 'en';
 export const LOCALE_COOKIE = 'NEXT_LOCALE';
 
 export function isLocale(value: unknown): value is AppLocale {
