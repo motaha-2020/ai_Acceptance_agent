@@ -152,6 +152,7 @@ export function BulkUpload() {
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-xs text-muted-foreground">{t('fallbackHint')}</p>
           </div>
         </CardContent>
       </Card>
@@ -220,6 +221,8 @@ function ConfirmCategories({ batchId, done, expected }: { batchId: string; done:
   const [choice, setChoice] = useState<Record<string, PhotoCategoryDto>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  /** Confirmed by the uploader in this session; other confirmed photos were auto-confirmed by the worker. */
+  const [manual, setManual] = useState<Set<string>>(new Set());
 
   const photos = useQuery({
     queryKey: ['bulk-batch', batchId],
@@ -244,6 +247,7 @@ function ConfirmCategories({ batchId, done, expected }: { batchId: string; done:
   const rows = photos.data ?? [];
   const pending = rows.filter((p) => p.categoryState !== 'confirmed');
   const classifying = rows.filter((p) => p.categoryState === 'classifying').length;
+  const autoConfirmed = rows.filter((p) => p.categoryState === 'confirmed' && !manual.has(p.id)).length;
   const value = (p: PhotoDto): PhotoCategoryDto => choice[p.id] ?? p.proposedCategory ?? p.category;
   // Least certain first: those need a look; confident ones can be confirmed in one click.
   const ordered = [...pending].sort((a, b) => (a.categoryConfidence ?? 0) - (b.categoryConfidence ?? 0));
@@ -258,6 +262,7 @@ function ConfirmCategories({ batchId, done, expected }: { batchId: string; done:
         const res = await confirmCategories(part.map((id) => ({ photoId: id, category: value(rows.find((p) => p.id === id)!) })));
         confirmed += res.confirmed;
       }
+      setManual((prev) => new Set([...prev, ...ready]));
       toast.success(t('confirmed', { count: confirmed }));
       setSelected(new Set());
       await qc.invalidateQueries({ queryKey: ['bulk-batch', batchId] });
@@ -287,6 +292,7 @@ function ConfirmCategories({ batchId, done, expected }: { batchId: string; done:
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
         {classifying > 0 ? <Alert tone="info">{t('classifying', { count: classifying })}</Alert> : null}
+        {autoConfirmed > 0 && pending.length > 0 ? <Alert tone="success">{t('autoConfirmed', { count: autoConfirmed })}</Alert> : null}
         {rows.length > 0 && pending.length === 0 ? (
           <Alert tone="success">
             {t('allConfirmed', { count: rows.length })}{' '}

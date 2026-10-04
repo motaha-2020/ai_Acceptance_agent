@@ -65,7 +65,7 @@ export function startAnalysisRuntime(deps: AnalysisRuntimeDeps): AnalyzePhotoPro
     logger: deps.logger,
   });
   startAnalysisWorker(deps.queue, processor, { concurrency: deps.env.AI_CONCURRENCY, attempts: deps.env.AI_MAX_ATTEMPTS });
-  const classify = new ClassifyPhotoProcessor({ prisma: deps.prisma, storage: deps.storage, classifier: deps.classifier ?? new FakeCategoryClassifier(), budget, logger: deps.logger });
+  const classify = new ClassifyPhotoProcessor({ prisma: deps.prisma, storage: deps.storage, classifier: deps.classifier ?? new FakeCategoryClassifier(), budget, logger: deps.logger, queue: deps.queue, analysisAttempts: deps.env.AI_MAX_ATTEMPTS });
   startClassifyWorker(deps.queue, classify, { concurrency: deps.env.AI_CONCURRENCY });
   deps.logger.info({ provider: deps.env.AI_PROVIDER, concurrency: deps.env.AI_CONCURRENCY, queue: deps.queue.kind }, 'analysis worker started');
   return processor;

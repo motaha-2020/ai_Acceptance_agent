@@ -26,7 +26,7 @@ describe('bulk upload with AI-proposed categories (ADR 0005)', () => {
   const batch = randomUUID();
   const photoIds: string[] = [];
 
-  it('stores bulk photos as classifying and does not analyse them', async () => {
+  it('stores bulk photos as classifying; folder + AI agreement confirms and analyses, the rest wait', async () => {
     for (const [i, fileName] of ['site-a/PDU/pdu (1).jpeg', 'site-a/Rack/rack (2).jpeg'].entries()) {
       const res = await h.upload(
         admin,
@@ -42,8 +42,13 @@ describe('bulk upload with AI-proposed categories (ADR 0005)', () => {
     const list = await h.request({ method: 'GET', url: `/api/v1/photos?uploadBatchId=${batch}`, token: admin });
     const items = list.json<{ items: Photo[] }>().items;
     expect(items).toHaveLength(2);
-    for (const p of items) expect(p).toMatchObject({ status: 'uploaded', categoryState: 'proposed', proposedCategory: 'rack' });
-    expect(await h.prisma.analysis.count({ where: { photoId: { in: photoIds } } })).toBe(0);
+    // The fake classifier says "rack": the PDU-folder photo disagrees and waits, the Rack-folder photo is auto-confirmed.
+    const pdu = items.find((p) => p.id === photoIds[0])!;
+    const rack = items.find((p) => p.id === photoIds[1])!;
+    expect(pdu).toMatchObject({ status: 'uploaded', categoryState: 'proposed', proposedCategory: 'rack' });
+    expect(rack).toMatchObject({ categoryState: 'confirmed', category: 'rack', proposedCategory: 'rack' });
+    expect(await h.prisma.analysis.count({ where: { photoId: photoIds[0] } })).toBe(0);
+    expect(await h.prisma.analysis.count({ where: { photoId: photoIds[1] } })).toBe(1);
   });
 
   it('a photo dropped again in a new batch before confirmation moves to that batch', async () => {
@@ -73,7 +78,7 @@ describe('bulk upload with AI-proposed categories (ADR 0005)', () => {
     const body = { items: [{ photoId: photoIds[0], category: 'pdu' }, { photoId: photoIds[1], category: 'rack' }] };
     const res = await h.request({ method: 'POST', url: '/api/v1/photos/confirm-categories', token: admin, body });
     expect(res.status).toBe(200);
-    expect(res.json()).toEqual({ confirmed: 2, skipped: 0 });
+    expect(res.json()).toEqual({ confirmed: 1, skipped: 1 });
     const pdu = await h.prisma.photo.findUniqueOrThrow({ where: { id: photoIds[0] }, include: { submission: true } });
     expect(pdu).toMatchObject({ category: 'pdu', categoryState: 'confirmed', submission: { category: 'pdu', visitId: ids.visitId } });
 

@@ -1,5 +1,6 @@
-import type { PrismaClient } from '@acceptance/db';
-import { JobName, UnrecoverableJobError, type ClassifyPhotoJob, type JobContext, type JobQueue } from '@acceptance/queue';
+import { guessCategoryFromPath } from '@acceptance/checklist';
+import type { Photo, PrismaClient } from '@acceptance/db';
+import { analyzePhotoJobId, JobName, UnrecoverableJobError, type AnalyzePhotoJob, type ClassifyPhotoJob, type JobContext, type JobQueue } from '@acceptance/queue';
 import { PhotoCategory } from '@acceptance/shared';
 import type { ObjectStorage } from '@acceptance/storage';
 import type { BudgetGuard } from './guards.js';
@@ -27,12 +28,18 @@ export interface ClassifyPhotoDeps {
   classifier: CategoryClassifierPort;
   budget: BudgetGuard;
   logger: Logger;
+  /** Needed to start the analysis of auto-confirmed photos. */
+  queue: JobQueue;
+  analysisAttempts?: number;
 }
+
+type Guess = { category: PhotoCategory; confidence: number; alternative?: PhotoCategory };
 
 /**
  * `classify-photo` job (ADR 0005): propose a category for a bulk-uploaded photo. The photo moves
  * classifying -> proposed with or without a proposal (budget exhausted / classifier failed = the uploader
- * picks the category by hand); it is never analysed here.
+ * picks the category by hand). When the uploaded folder name and the AI agree on the category, the photo is
+ * confirmed right away and its analysis starts (two independent signals; the uploader only checks the rest).
  */
 export class ClassifyPhotoProcessor {
   constructor(private readonly deps: ClassifyPhotoDeps) {}
@@ -54,6 +61,11 @@ export class ClassifyPhotoProcessor {
     }
     const image = await storage.get(photo.webKey);
     const { guess } = await this.deps.classifier.classify(new Uint8Array(image), photo.fileName ?? undefined);
+    const folder = photo.fileName ? guessCategoryFromPath(photo.fileName) : undefined;
+    if (folder && folder === guess.category && (await this.autoConfirm(photo, guess))) {
+      logger.info({ photoId, category: guess.category }, 'classify-photo: folder and AI agree, confirmed automatically');
+      return;
+    }
     await this.propose(photoId, guess);
   }
 
@@ -63,7 +75,36 @@ export class ClassifyPhotoProcessor {
     if (final) await this.propose(job.data.photoId, null);
   }
 
-  private async propose(photoId: string, guess: { category: PhotoCategory; confidence: number; alternative?: PhotoCategory } | null): Promise<void> {
+  /** Same effect as POST /photos/confirm-categories for one photo. Returns false if the photo moved on meanwhile. */
+  private async autoConfirm(photo: Photo, guess: Guess): Promise<boolean> {
+    const changed = await this.deps.prisma.$transaction(async (tx) => {
+      const submission = await tx.submission.upsert({
+        where: { visitId_category: { visitId: photo.visitId, category: guess.category } },
+        update: {},
+        create: { visitId: photo.visitId, category: guess.category },
+      });
+      return tx.photo.updateMany({
+        where: { id: photo.id, categoryState: 'classifying' },
+        data: {
+          category: guess.category,
+          submissionId: submission.id,
+          categoryState: 'confirmed',
+          proposedCategory: guess.category,
+          proposedAlternative: guess.alternative ?? null,
+          categoryConfidence: guess.confidence,
+        },
+      });
+    });
+    if (changed.count !== 1) return false;
+    await this.deps.queue.enqueue<AnalyzePhotoJob>(
+      JobName.analyzePhoto,
+      { photoId: photo.id, reason: 'upload' },
+      { jobId: analyzePhotoJobId(photo.id, 'upload'), attempts: this.deps.analysisAttempts ?? 3 },
+    );
+    return true;
+  }
+
+  private async propose(photoId: string, guess: Guess | null): Promise<void> {
     await this.deps.prisma.photo.updateMany({
       where: { id: photoId, categoryState: 'classifying' },
       data: {
