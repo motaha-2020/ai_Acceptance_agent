@@ -21,7 +21,7 @@ import type { AppLocale } from '@/i18n/config';
 import { useErrorMessage } from '@/lib/errors';
 import { formatPercent } from '@/lib/format';
 import { CATEGORIES, categoryTitle } from '@/lib/taxonomy';
-import { chunk, guessCategoryFromPath, isImage, mapLimit } from './plan';
+import { chunk, guessCategoryFromPath, isImage, mapLimit, uuidv4 } from './plan';
 
 type FileState = 'queued' | 'uploading' | 'done' | 'duplicate' | 'error';
 interface QueuedFile {
@@ -46,7 +46,7 @@ export function BulkUpload() {
   const [visitId, setVisitId] = useState('');
   const [fallback, setFallback] = useState<PhotoCategoryDto>('rack');
   const [files, setFiles] = useState<QueuedFile[]>([]);
-  const [batchId, setBatchId] = useState(() => crypto.randomUUID());
+  const [batchId, setBatchId] = useState(() => uuidv4());
   const [running, setRunning] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
@@ -64,7 +64,7 @@ export function BulkUpload() {
     for (const file of Array.from(list)) {
       if (!isImage(file)) continue;
       const path = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-      added.push({ key: `${path}:${file.size}:${file.lastModified}`, file, path, clientUuid: crypto.randomUUID(), guess: guessCategoryFromPath(path), state: 'queued' });
+      added.push({ key: `${path}:${file.size}:${file.lastModified}`, file, path, clientUuid: uuidv4(), guess: guessCategoryFromPath(path), state: 'queued' });
     }
     setFiles((prev) => {
       const seen = new Set(prev.map((f) => f.key));
@@ -109,7 +109,7 @@ export function BulkUpload() {
 
   const reset = () => {
     setFiles([]);
-    setBatchId(crypto.randomUUID());
+    setBatchId(uuidv4());
   };
 
   return (

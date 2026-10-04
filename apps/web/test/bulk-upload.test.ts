@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { chunk, guessCategoryFromPath, isImage, mapLimit } from '@/features/bulk-upload/plan';
+import { UploadPhotoMetadata } from '@acceptance/shared';
+import { chunk, guessCategoryFromPath, isImage, mapLimit, uuidv4 } from '@/features/bulk-upload/plan';
 
 describe('bulk upload helpers', () => {
   it('guesses the category from the deepest known site folder', () => {
@@ -31,5 +32,13 @@ describe('bulk upload helpers', () => {
     });
     expect(out).toEqual([50, 10, 40, 20, 30]);
     expect(peak).toBe(2);
+  });
+
+  it('makes valid v4 UUIDs without crypto.randomUUID (plain-HTTP portal)', () => {
+    const ids = new Set(Array.from({ length: 200 }, () => uuidv4()));
+    expect(ids.size).toBe(200);
+    for (const id of ids) expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    const id = uuidv4(() => new Uint8Array(16).fill(255));
+    expect(UploadPhotoMetadata.shape.clientUuid.safeParse(id).success).toBe(true);
   });
 });
